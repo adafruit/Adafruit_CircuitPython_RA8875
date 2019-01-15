@@ -68,6 +68,7 @@ _PWRR_SLEEP = 0x02
 _PWRR_NORMAL = 0x00
 _PWRR_SOFTRESET = 0x01
 _MRWC = 0x02
+_GPIOX = 0xC7
 
 _PLLC1 = 0x88
 _PLLC1_PLLDIV2 = 0x80
@@ -253,10 +254,8 @@ def color565(r, g=0, b=0):
 
 class RA8875:
     """Set Variables and Send Init Commands"""
-    def __init__(self, spi, cs, rst, width=800, height=480,
-                 baudrate=12000000, polarity=0, phase=0):
-        self.spi_device = spi_device.SPIDevice(spi, cs, baudrate=baudrate,
-                                               polarity=polarity, phase=phase)
+    def __init__(self, spi, cs, rst, width=800, height=480, baudrate=12000000, polarity=0, phase=0):
+        self.spi_device = spi_device.SPIDevice(spi, cs, baudrate=baudrate, polarity=polarity, phase=phase)
         if width == 800 and height == 480:
             pixclk = _PCSR_PDATL | _PCSR_2CLK
             hsync_nondisp = 26
@@ -288,11 +287,14 @@ class RA8875:
             return False
         
         self.pllinit()
+        
+        print("Setting Mode")
         self.write_reg(_SYSR, _SYSR_16BPP | _SYSR_MCU8)
         self.write_reg(_PCSR, pixclk)
-        time.sleep(0.001)
+        time.sleep(0.001)   # 1 millisecond
         
         # Horizontal settings registers
+        print("Horizontal settings")
         self.write_reg(_HDWR, int(width / 8) - 1)
         self.write_reg(_HNDFTR, _HNDFTR_DE_HIGH)
         self.write_reg(_HNDR, int((hsync_nondisp - 2) / 8))
@@ -300,6 +302,7 @@ class RA8875:
         self.write_reg(_HPWR, _HPWR_LOW + int(hsync_pw/8 - 1))
         
         # Vertical settings registers
+        print("Vertical settings")
         self.write_reg(_VDHR0, (height - 1) & 0xFF)
         self.write_reg(_VDHR1, (height - 1) >> 8)
         self.write_reg(_VNDR0, vsync_nondisp - 1)
@@ -309,27 +312,32 @@ class RA8875:
         self.write_reg(_VPWR, _VPWR_LOW + vsync_pw - 1)
         
         # Set active window X
+        print("Set active window X")
         self.write_reg(_HSAW0, 0)
         self.write_reg(_HSAW1, 0)
         self.write_reg(_HEAW0, (width - 1) & 0xFF)
         self.write_reg(_HEAW1, (width - 1) >> 8)
 
         # Set active window Y
+        print("Set active window Y")
         self.write_reg(_VSAW0, 0)
         self.write_reg(_VSAW1, 0)
         self.write_reg(_VEAW0, (height - 1) & 0xFF)
         self.write_reg(_VEAW1, (height - 1) >> 8)
         
         # Clear the entire window
+        print("Clear Window")
         self.write_reg(_MCLR, _MCLR_START | _MCLR_FULL)
-        time.sleep(0.500)
+        time.sleep(0.500)   # 500 milliseconds
+        print ("Init Finished")
 
     def pllinit(self):
         """Initialize the PLL"""
+        print("PLL Init")
         self.write_reg(_PLLC1, _PLLC1_PLLDIV1 + 10)
-        time.sleep(0.001)
+        time.sleep(0.001)   # 1 millisecond
         self.write_reg(_PLLC2, _PLLC2_DIV4)
-        time.sleep(0.001)
+        time.sleep(0.001)   # 1 millisecond
         
     def write_reg(self, cmd, data):
         """SPI write to the device: registers"""
@@ -340,13 +348,15 @@ class RA8875:
         """SPI write to the device: commands"""
         with self.spi_device as spi:
             spi.write(_CMDWR)
-            spi.write(struct.pack("B", cmd))
+            spi.write(bytearray([cmd]))
+            print("wr cmd:", bytearray([cmd]))
         
     def write_data(self, data):
         """SPI write to the device: data"""
         with self.spi_device as spi:
             spi.write(_DATWR)
-            spi.write(struct.pack("B", data))
+            spi.write(bytearray([data]))
+            print("wr data:", bytearray([data]))
             
     def read_reg(self, cmd):
         """SPI read from the device: registers"""
@@ -359,6 +369,7 @@ class RA8875:
         with self.spi_device as spi:
             spi.write(_CMDRD)
             spi.readinto(cmd)
+            print("rd cmd:", struct.unpack(">B", cmd)[0])
             return struct.unpack(">B", cmd)[0]
         
     def read_data(self):
@@ -367,10 +378,11 @@ class RA8875:
         with self.spi_device as spi:
             spi.write(_DATRD)
             spi.readinto(data)
+            print("rd data:", struct.unpack(">B", data)[0])
             return struct.unpack(">B", data)[0]
             
     def wait_poll(self, reg, flag):
-        """Wait for a register to match a flag"""
+        """Wait for a register value to not match a flag"""
         while True:
             temp = self.read_reg(reg)
             if not (temp & flag):
@@ -395,21 +407,25 @@ class RA8875:
         self.write_data(x)
         self.write_cmd(0x92)
         self.write_data(x >> 8)
+        
         # Set Y
         self.write_cmd(0x93)
         self.write_data(y)
         self.write_cmd(0x94)
         self.write_data(y >> 8)
+        
         # Set X1
         self.write_cmd(0x95)
         self.write_data(width)
         self.write_cmd(0x96)
         self.write_data(width >> 8)
+        
         # Set Y1
         self.write_cmd(0x97)
         self.write_data(height)
         self.write_cmd(0x98)
         self.write_data(height >> 8)
+        
         # Set Color
         self.write_cmd(0x63)
         self.write_data((color & 0xf800) >> 11)
@@ -418,10 +434,42 @@ class RA8875:
         self.write_cmd(0x65)
         self.write_data((color & 0x001f))
         
+        # Draw it
         self.write_cmd(_DCR)
         if filled:
             self.write_data(0xB0)
         else:
             self.write_data(0x90)
             
-        self.wait_poll(_DCR, _DCR_LNSQTR_STAT)
+        #self.wait_poll(_DCR, _DCR_LNSQTR_STAT)
+        
+    def on(self, on):
+        """Turn the Display On or Off"""
+        if on: 
+            self.write_reg(_PWRR, _PWRR_NORMAL | _PWRR_DISPON)
+        else:
+            self.write_reg(_PWRR, _PWRR_NORMAL | _PWRR_DISPOFF)
+
+    def gpiox(self, on):
+        if on: 
+            self.write_reg(_GPIOX, 1)
+        else:
+            self.write_reg(_GPIOX, 0)
+            
+    def pwm1_config(self, on, clock):
+        if on: 
+            self.write_reg(_P1CR, _P1CR_ENABLE | (clock & 0xF))
+        else:
+            self.write_reg(_P1CR, _P1CR_DISABLE | (clock & 0xF))
+            
+    def pwm1_out(self, p):
+        self.write_reg(_P1DCR, p)
+
+    def pwm2_out(self, p):
+        self.write_reg(_P2DCR, p)
+        
+    def gfx_mode(self):
+        self.write_cmd(_MWCR0)
+        temp = self.read_data()
+        temp &= ~_MWCR0_TXTMODE
+        self.write_data(temp)
