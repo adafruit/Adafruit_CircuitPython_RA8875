@@ -254,7 +254,7 @@ def color565(r, g=0, b=0):
 
 class RA8875:
     """Set Variables and Send Init Commands"""
-    def __init__(self, spi, cs, rst=None, intr=None, width=800, height=480, baudrate=12000000, polarity=0, phase=0):
+    def __init__(self, spi, cs, rst=None, width=800, height=480, baudrate=12000000, polarity=0, phase=0):
         self.spi_device = spi_device.SPIDevice(spi, cs, baudrate=baudrate, polarity=polarity, phase=phase)
         if width == 800 and height == 480:
             pixclk = _PCSR_PDATL | _PCSR_2CLK
@@ -264,6 +264,7 @@ class RA8875:
             vsync_nondisp = 32
             vsync_start = 23
             vsync_pw = 2
+            self.adc_clk = _TPCR0_ADCCLK_DIV16
         elif width == 480 and height == 272:
             pixclk = _PCSR_PDATL | _PCSR_4CLK
             hsync_nondisp = 10
@@ -272,14 +273,12 @@ class RA8875:
             vsync_nondisp = 3
             vsync_start = 8
             vsync_pw = 10
+            self.adc_clk = _TPCR0_ADCCLK_DIV4
         else:
             raise ValueError('An invalid display size was specified.')
             
         self.width = width
         self.height = height
-        self.intr = intr
-        if self.intr:
-            self.intr.switch_to_input()
         self.rst = rst
         if self.rst:
             self.rst.switch_to_output(value=0)
@@ -354,7 +353,7 @@ class RA8875:
     def read_reg(self, cmd):
         """SPI read from the device: registers"""
         self.write_cmd(cmd)
-        return self.read_status()
+        return self.read_data()
         
     def read_status(self):
         """SPI read from the device: commands"""
@@ -382,7 +381,6 @@ class RA8875:
             millis = int(round(time.time() * 1000))
             if millis - start >= 20:
                 return False
-        return False
         
     def reset(self):
         """Reset the device"""
@@ -641,6 +639,35 @@ class RA8875:
     def pwm2_out(self, p):
         self.write_reg(_P2DCR, p)
         
+    def touch_enable(self, on):
+        if on:
+            self.write_reg(_TPCR0, _TPCR0_ENABLE | _TPCR0_WAIT_4096CLK | _TPCR0_WAKEENABLE | self.adc_clk)
+            self.write_reg(_TPCR1, _TPCR1_AUTO | _TPCR1_DEBOUNCE)
+            intc1 = self.read_reg(_INTC1)
+            self.write_reg(_INTC1, intc1 | _INTC1_TP)
+        else:
+            self.write_reg(_INTC1, self.read_reg(_INTC1) & ~_INTC1_TP)
+            self.write_reg(_TPCR0, _TPCR0_DISABLE)
+        print(self.read_reg(_INTC1))    
+    def touched(self):
+        temp = self.read_reg(_INTC2)
+        
+        if temp & _INTC2_TP:
+            return True
+        else:
+            return False
+    
+    def touch_read(self):
+        tx = self.read_reg(_TPXH)
+        ty = self.read_reg(_TPYH)
+        temp = self.read_reg(_TPXYL)
+        tx = tx << 2
+        ty = ty << 2
+        tx |= temp & 0x03
+        ty |= (temp >> 2) & 0x03
+        self.write_reg(_INTC2, _INTC2_TP)
+        return [tx, ty]
+    
     def gfx_mode(self):
         self.write_cmd(_MWCR0)
         temp = self.read_data()
