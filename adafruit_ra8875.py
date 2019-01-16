@@ -254,7 +254,7 @@ def color565(r, g=0, b=0):
 
 class RA8875:
     """Set Variables and Send Init Commands"""
-    def __init__(self, spi, cs, rst, width=800, height=480, baudrate=12000000, polarity=0, phase=0):
+    def __init__(self, spi, cs, rst=None, intr=None, width=800, height=480, baudrate=12000000, polarity=0, phase=0):
         self.spi_device = spi_device.SPIDevice(spi, cs, baudrate=baudrate, polarity=polarity, phase=phase)
         if width == 800 and height == 480:
             pixclk = _PCSR_PDATL | _PCSR_2CLK
@@ -277,6 +277,9 @@ class RA8875:
             
         self.width = width
         self.height = height
+        self.intr = intr
+        if self.intr:
+            self.intr.switch_to_input()
         self.rst = rst
         if self.rst:
             self.rst.switch_to_output(value=0)
@@ -371,11 +374,14 @@ class RA8875:
             
     def wait_poll(self, reg, mask):
         """Wait for a masked register value to be 0"""
-        """To Do: Add a 20ms Timeout (take timestamp and compare in loop)"""
+        start = int(round(time.time() * 1000))
         while True:
             status = self.read_reg(reg)
             if (status & mask) == 0:
                 return True
+            millis = int(round(time.time() * 1000))
+            if millis - start >= 20:
+                return False
         return False
         
     def reset(self):
@@ -386,11 +392,9 @@ class RA8875:
         time.sleep(0.100)  # 100 milliseconds
         
     def rect(self, x, y, width, height, color):
-        """Draw an Unfilled Rectangle"""
         self.rect_helper(x, y, width, height, color, False)
 
     def fill_rect(self, x, y, width, height, color):
-        """Draw a Filled Rectangle"""
         self.rect_helper(x, y, width, height, color, True)
 
     def fill(self, color):
@@ -398,75 +402,76 @@ class RA8875:
         self.rect_helper(0, 0, self.width, self.height, color, True)
 
     def circle(self, x, y, radius, color):
-        """Draw an Unfilled Circle"""
         self.circle_helper(x, y, radius, color, False)
 
     def fill_circle(self, x, y, radius, color):
-        """Draw a Filled Circle"""
         self.circle_helper(x, y, radius, color, True)
 
     def ellipse(self, x_center, y_center, long_axis, short_axis, color):
-        """Draw an Unfilled Ellipse"""
         self.ellipse_helper(x_center, y_center, long_axis, short_axis, color, False)
 
     def fill_ellipse(self, x_center, y_center, long_axis, short_axis, color):
-        """Draw a Filled Ellipse"""
         self.ellipse_helper(x_center, y_center, long_axis, short_axis, color, True)
 
     def curve(self, x_center, y_center, long_axis, short_axis, curve_part, color):
-        """Draw an Unfilled Curve"""
-        self.curve_helper(x_center, y_center, long_axis, short_axis, color, False)
+        self.curve_helper(x_center, y_center, long_axis, short_axis, curve_part, color, False)
 
     def fill_curve(self, x_center, y_center, long_axis, short_axis, curve_part, color):
-        """Draw an Unfilled Curve"""
-        self.curve_helper(x_center, y_center, long_axis, short_axis, color, True)
-        
+        self.curve_helper(x_center, y_center, long_axis, short_axis, curve_part, color, True)
+
+    def triangle(self, x1, y1, x2, y2, x3, y3, color):
+        self.triangle_helper(x1, y1, x2, y2, x3, y3, color, False)
+
+    def fill_triangle(self, x1, y1, x2, y2, x3, y3, color):
+        self.triangle_helper(x1, y1, x2, y2, x3, y3, color, True)
+    
+    def pixel(self, x, y, color):
+        """Draw a Pixel"""
+        self.write_reg(_CURH0, x)
+        self.write_reg(_CURH1, x >> 8)
+        self.write_reg(_CURV0, y)
+        self.write_reg(_CURV1, y >> 8)
+        self.write_cmd(_MRWC)
+        self.write_data(color >> 8)
+        self.write_data(color & 0xFF)
+    
     def hline(self, x, y, width, color):
+        """Draw a Horizontal Line"""
         self.line(x, y, x + width, y, color)
 
     def vline(self, x, y, height, color):
+        """Draw a Vertical Line"""
         self.line(x, y, x, y + height, color)
 
     def line(self, x1, y1, x2, y2, color):
         """Draw a Line"""
-        # Set X
+        # Set Start Point
         self.write_reg(0x91, x1)
         self.write_reg(0x92, x1 >> 8)
-        
-        # Set Y
         self.write_reg(0x93, y1)
         self.write_reg(0x94, y1 >> 8)
         
-        # Set X1
+        # Set End Point
         self.write_reg(0x95, x2)
         self.write_reg(0x96, x2 >> 8)
-        
-        # Set Y1
         self.write_reg(0x97, y2)
         self.write_reg(0x98, y2 >> 8)
         
-        # Set Color
         self._set_color(color)
        
         # Draw it
         self.write_reg(_DCR, 0x80)
-            
         self.wait_poll(_DCR, _DCR_LNSQTR_STATUS)
 
     def circle_helper(self, x, y, radius, color, filled):
         """Draw a Circle"""
-        # Set X
+        # Set X, Y, and Radius
         self.write_reg(0x99, x)
         self.write_reg(0x9A, x >> 8)
-        
-        # Set Y
         self.write_reg(0x9B, y)
         self.write_reg(0x9C, y >> 8)
-        
-        # Set Radius
         self.write_reg(0x9D, radius)
 
-        # Set Color
         self._set_color(color)
         
         # Draw it
@@ -480,23 +485,18 @@ class RA8875:
 
     def rect_helper(self, x, y, width, height, color, filled):
         """Draw a Rectangle"""
-        # Set X
+        # Set X and Y
         self.write_reg(0x91, x)
         self.write_reg(0x92, x >> 8)
-        
-        # Set Y
         self.write_reg(0x93, y)
         self.write_reg(0x94, y >> 8)
         
-        # Set Width
+        # Set Width and Height
         self.write_reg(0x95, width)
         self.write_reg(0x96, width >> 8)
-        
-        # Set Height
         self.write_reg(0x97, height)
         self.write_reg(0x98, height >> 8)
         
-        # Set Color
         self._set_color(color)
         
         # Draw it
@@ -528,25 +528,47 @@ class RA8875:
         self.vline(x, y + radius, height - (radius * 2), color)
         self.vline(x + width, y + radius, height - (radius * 2), color)
         
+    def triangle_helper(self, x1, y1, x2, y2, x3, y3, color, filled):
+        """Draw a Triangle"""
+        # Set Point Coordinates
+        self.write_reg(0x91, x1)
+        self.write_reg(0x92, x1 >> 8)
+        self.write_reg(0x93, y1)
+        self.write_reg(0x94, y1 >> 8)
+        self.write_reg(0x95, x2)
+        self.write_reg(0x96, x2 >> 8)
+        self.write_reg(0x97, y2)
+        self.write_reg(0x98, y2 >> 8)
+        self.write_reg(0xA9, x3)
+        self.write_reg(0xAA, x3 >> 8)
+        self.write_reg(0xAB, y3)
+        self.write_reg(0xAC, y3 >> 8)
+        
+        self._set_color(color)
+       
+        # Draw it
+        self.write_cmd(_DCR)
+        if filled:
+            self.write_data(0xA1)
+        else:
+            self.write_data(0x81)
+            
+        self.wait_poll(_DCR, _DCR_LNSQTR_STATUS)
+
     def curve_helper(self, x_center, y_center, long_axis, short_axis, curve_part, color, filled):
         """Draw an Ellipse"""
-        # Set X Center
+        # Set X and Y Center
         self.write_reg(0xA5, x_center)
         self.write_reg(0xA6, x_center >> 8)
-        
-        # Set Y Center
         self.write_reg(0xA7, y_center)
         self.write_reg(0xA8, y_center >> 8)
         
-        # Set Long Axis
+        # Set Long and Short Axis
         self.write_reg(0xA1, long_axis)
         self.write_reg(0xA2, long_axis >> 8)
-        
-        # Set Short Axis
         self.write_reg(0xA3, short_axis)
         self.write_reg(0xA4, short_axis >> 8)
         
-        # Set Color
         self._set_color(color)
         
         # Draw it
@@ -560,23 +582,18 @@ class RA8875:
 
     def ellipse_helper(self, x_center, y_center, long_axis, short_axis, color, filled):
         """Draw an Ellipse"""
-        # Set X Center
+        # Set X and Y  Center
         self.write_reg(0xA5, x_center)
         self.write_reg(0xA6, x_center >> 8)
-        
-        # Set Y Center
         self.write_reg(0xA7, y_center)
         self.write_reg(0xA8, y_center >> 8)
         
-        # Set Long Axis
+        # Set Long and Short Axis
         self.write_reg(0xA1, long_axis)
         self.write_reg(0xA2, long_axis >> 8)
-        
-        # Set Short Axis
         self.write_reg(0xA3, short_axis)
         self.write_reg(0xA4, short_axis >> 8)
         
-        # Set Color
         self._set_color(color)
         
         # Draw it
