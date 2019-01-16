@@ -140,9 +140,9 @@ _MCLR_ACTIVE = 0x40
 _DCR = 0x90
 _DCR_LNSQTR_START = 0x80
 _DCR_LNSQTR_STOP = 0x00
-_DCR_LNSQTR_STAT = 0x80
+_DCR_LNSQTR_STATUS = 0x80
 _DCR_CIRC_START = 0x40
-_DCR_CIRC_STAT = 0x40
+_DCR_CIRC_STATUS = 0x40
 _DCR_CIRC_STOP = 0x00
 _DCR_FILL = 0x20
 _DCR_NOFILL = 0x00
@@ -151,7 +151,7 @@ _DCR_DRAWTRI = 0x01
 _DCR_DRAWSQU = 0x10
 
 _ELLIPSE = 0xA0
-_ELLIPSE_STAT = 0x80
+_ELLIPSE_STATUS = 0x80
 
 _MWCR0 = 0x40
 _MWCR0_GFXMODE = 0x00
@@ -339,13 +339,13 @@ class RA8875:
     def write_cmd(self, cmd):
         """SPI write to the device: commands"""
         with self.spi_device as spi:
-            spi.write(_CMDWR, end=1)
+            spi.write(_CMDWR)
             spi.write(bytearray([cmd]))
         
     def write_data(self, data):
         """SPI write to the device: data"""
         with self.spi_device as spi:
-            spi.write(_DATWR, end=1)
+            spi.write(_DATWR)
             spi.write(bytearray([data]))
             
     def read_reg(self, cmd):
@@ -357,8 +357,8 @@ class RA8875:
         """SPI read from the device: commands"""
         cmd = bytearray(1)
         with self.spi_device as spi:
-            spi.write(_CMDRD, end=1)
-            spi.readinto(cmd, end=1)
+            spi.write(_CMDRD)
+            spi.readinto(cmd)
             return struct.unpack(">B", cmd)[0]
         
     def read_data(self):
@@ -369,12 +369,17 @@ class RA8875:
             spi.readinto(data)
             return struct.unpack(">B", data)[0]
             
-    def wait_poll(self, reg, flag):
-        """Wait for a register value to not match a flag"""
+    def wait_poll(self, reg, mask):
+        """Wait for a masked register value to be 0"""
+        """To Do: Add a Timeout (take timestamp and compare in loop)"""
+        print("Status Mask: 0x{:02x}".format(mask))
         while True:
-            temp = self.read_reg(reg)
-            if not (temp & flag):
+            status = self.read_reg(reg)
+            print("Status: 0x{:02x}".format(status))
+            if (status & mask) == 0:
                 return True
+            else:
+                time.sleep(0.002)
         return False
         
     def reset(self):
@@ -384,11 +389,124 @@ class RA8875:
         self.rst.value = 1
         time.sleep(0.100)  # 100 milliseconds
         
-    def fill(self, color):
-        """Fill The Screen"""
-        self.draw_rectangle(0, 0, self.width, self.height, color, True)
+    def draw_rect(self, x, y, width, height, color):
+        """Draw an Unfilled Rectangle"""
+        self.rect_helper(x, y, width, height, color, False)
 
-    def draw_rectangle(self, x, y, width, height, color, filled):
+    def fill_rect(self, x, y, width, height, color):
+        """Draw a Filled Rectangle"""
+        self.rect_helper(x, y, width, height, color, True)
+
+    def fill_screen(self, color):
+        """Fill The Screen"""
+        self.rect_helper(0, 0, self.width, self.height, color, True)
+
+    def draw_circle(self, x, y, radius, color):
+        """Draw an Unfilled Circle"""
+        self.circle_helper(x, y, radius, color, False)
+
+    def fill_circle(self, x, y, radius, color):
+        """Draw a Filled Circle"""
+        self.circle_helper(x, y, radius, color, True)
+
+    def draw_ellipse(self, x_center, y_center, long_axis, short_axis, color):
+        """Draw an Unfilled Ellipse"""
+        self.ellipse_helper(x_center, y_center, long_axis, short_axis, color, False)
+
+    def fill_ellipse(self, x_center, y_center, long_axis, short_axis, color):
+        """Draw a Filled Ellipse"""
+        self.ellipse_helper(x_center, y_center, long_axis, short_axis, color, True)
+
+    def draw_curve(self, x_center, y_center, long_axis, short_axis, curve_part, color):
+        """Draw an Unfilled Curve"""
+        self.curve_helper(x_center, y_center, long_axis, short_axis, color, False)
+
+    def fill_curve(self, x_center, y_center, long_axis, short_axis, curve_part, color):
+        """Draw an Unfilled Curve"""
+        self.curve_helper(x_center, y_center, long_axis, short_axis, color, True)
+        
+    def draw_hline(self, x, y, width, color):
+        self.draw_line(x, y, x + width, y, color)
+
+    def draw_vline(self, x, y, height, color):
+        self.draw_line(x, y, x, y + height, color)
+
+    def draw_line(self, x1, y1, x2, y2, color):
+        """Draw a Line"""
+        # Set X
+        self.write_cmd(0x91)
+        self.write_data(x1)
+        self.write_cmd(0x92)
+        self.write_data(x1 >> 8)
+        
+        # Set Y
+        self.write_cmd(0x93)
+        self.write_data(y1)
+        self.write_cmd(0x94)
+        self.write_data(y1 >> 8)
+        
+        # Set X1
+        self.write_cmd(0x95)
+        self.write_data(x2)
+        self.write_cmd(0x96)
+        self.write_data(x2 >> 8)
+        
+        # Set Y1
+        self.write_cmd(0x97)
+        self.write_data(y2)
+        self.write_cmd(0x98)
+        self.write_data(y2 >> 8)
+        
+        # Set Color
+        self.write_cmd(0x63)
+        self.write_data((color & 0xf800) >> 11)
+        self.write_cmd(0x64)
+        self.write_data((color & 0x07e0) >> 5)
+        self.write_cmd(0x65)
+        self.write_data((color & 0x001f))
+        
+        # Draw it
+        self.write_cmd(_DCR)
+        self.write_data(0x80)
+            
+        self.wait_poll(_DCR, _DCR_LNSQTR_STATUS)
+
+    def circle_helper(self, x, y, radius, color, filled):
+        """Draw a Circle"""
+        # Set X
+        self.write_cmd(0x99)
+        self.write_data(x)
+        self.write_cmd(0x9A)
+        self.write_data(x >> 8)
+        
+        # Set Y
+        self.write_cmd(0x9B)
+        self.write_data(y)
+        self.write_cmd(0x9C)
+        self.write_data(y >> 8)
+        
+        # Set Radius
+        self.write_cmd(0x9D)
+        self.write_data(radius)
+
+        # Set Color
+        self.write_cmd(0x63)
+        self.write_data((color & 0xf800) >> 11)
+        self.write_cmd(0x64)
+        self.write_data((color & 0x07e0) >> 5)
+        self.write_cmd(0x65)
+        self.write_data((color & 0x001f))
+        
+        # Draw it
+        self.write_cmd(_DCR)
+        if filled:
+            self.write_data(_DCR_CIRC_START | _DCR_FILL)
+        else:
+            self.write_data(_DCR_CIRC_START | _DCR_NOFILL)
+            
+        self.wait_poll(_DCR, _DCR_CIRC_STATUS)
+
+    def rect_helper(self, x, y, width, height, color, filled):
         """Draw a Rectangle"""
         # Set X
         self.write_cmd(0x91)
@@ -402,13 +520,13 @@ class RA8875:
         self.write_cmd(0x94)
         self.write_data(y >> 8)
         
-        # Set X1
+        # Set Width
         self.write_cmd(0x95)
         self.write_data(width)
         self.write_cmd(0x96)
         self.write_data(width >> 8)
         
-        # Set Y1
+        # Set Height
         self.write_cmd(0x97)
         self.write_data(height)
         self.write_cmd(0x98)
@@ -429,7 +547,113 @@ class RA8875:
         else:
             self.write_data(0x90)
             
-        self.wait_poll(_DCR, _DCR_LNSQTR_STAT)
+        self.wait_poll(_DCR, _DCR_LNSQTR_STATUS)
+
+    def fill_round_rect(self, x, y, width, height, radius, color):
+        """Draw a Rounded Rectangle"""
+        self.circle_helper(x + radius, y + radius, radius, color, True)
+        self.circle_helper(x + width - radius, y + radius, radius, color, True)
+        self.circle_helper(x + radius, y + height - radius, radius, color, True)
+        self.circle_helper(x + width - radius, y + height - radius, radius, color, True)
+        self.rect_helper(x + radius, y, x + width - radius, y + height, color, True)
+        self.rect_helper(x, y + radius, x + width, y + height - radius, color, True)
+
+    def draw_round_rect(self, x, y, width, height, radius, color):
+        """Draw an Unfilled Rounded Rect"""
+        self.curve_helper(x + radius, y + radius, radius, radius, 1, color, False)
+        self.curve_helper(x + width - radius, y + radius, radius, radius, 2, color, False)
+        self.curve_helper(x + radius, y + height - radius, radius, radius, 0, color, False)
+        self.curve_helper(x + width - radius, y + height - radius, radius, radius, 3, color, False)
+        self.draw_hline(x + radius, y, width - (radius * 2), color)
+        self.draw_hline(x + radius, y + height, width - (radius * 2), color)
+        self.draw_vline(x, y + radius, height - (radius * 2), color)
+        self.draw_vline(x + width, y + radius, height - (radius * 2), color)
+        
+    def curve_helper(self, x_center, y_center, long_axis, short_axis, curve_part, color, filled):
+        """Draw an Ellipse"""
+        # Set X Center
+        self.write_cmd(0xA5)
+        self.write_data(x_center)
+        self.write_cmd(0xA6)
+        self.write_data(x_center >> 8)
+        
+        # Set Y Center
+        self.write_cmd(0xA7)
+        self.write_data(y_center)
+        self.write_cmd(0xA8)
+        self.write_data(y_center >> 8)
+        
+        # Set Long Axis
+        self.write_cmd(0xA1)
+        self.write_data(long_axis)
+        self.write_cmd(0xA2)
+        self.write_data(long_axis >> 8)
+        
+        # Set Short Axis
+        self.write_cmd(0xA3)
+        self.write_data(short_axis)
+        self.write_cmd(0xA4)
+        self.write_data(short_axis >> 8)
+        
+        # Set Color
+        self.write_cmd(0x63)
+        self.write_data((color & 0xf800) >> 11)
+        self.write_cmd(0x64)
+        self.write_data((color & 0x07e0) >> 5)
+        self.write_cmd(0x65)
+        self.write_data((color & 0x001f))
+        
+        # Draw it
+        self.write_cmd(_ELLIPSE)
+        if filled:
+            self.write_data(0xD0 | (curve_part & 0x03))
+        else:
+            self.write_data(0x90 | (curve_part & 0x03))
+            
+        self.wait_poll(_ELLIPSE, _ELLIPSE_STATUS)
+
+    def ellipse_helper(self, x_center, y_center, long_axis, short_axis, color, filled):
+        """Draw an Ellipse"""
+        # Set X Center
+        self.write_cmd(0xA5)
+        self.write_data(x_center)
+        self.write_cmd(0xA6)
+        self.write_data(x_center >> 8)
+        
+        # Set Y Center
+        self.write_cmd(0xA7)
+        self.write_data(y_center)
+        self.write_cmd(0xA8)
+        self.write_data(y_center >> 8)
+        
+        # Set Long Axis
+        self.write_cmd(0xA1)
+        self.write_data(long_axis)
+        self.write_cmd(0xA2)
+        self.write_data(long_axis >> 8)
+        
+        # Set Short Axis
+        self.write_cmd(0xA3)
+        self.write_data(short_axis)
+        self.write_cmd(0xA4)
+        self.write_data(short_axis >> 8)
+        
+        # Set Color
+        self.write_cmd(0x63)
+        self.write_data((color & 0xf800) >> 11)
+        self.write_cmd(0x64)
+        self.write_data((color & 0x07e0) >> 5)
+        self.write_cmd(0x65)
+        self.write_data((color & 0x001f))
+        
+        # Draw it
+        self.write_cmd(_ELLIPSE)
+        if filled:
+            self.write_data(0xC0)
+        else:
+            self.write_data(0x80)
+            
+        self.wait_poll(_ELLIPSE, _ELLIPSE_STATUS)
         
     def on(self, on):
         """Turn the Display On or Off"""

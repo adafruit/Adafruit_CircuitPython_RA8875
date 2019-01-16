@@ -27,7 +27,33 @@ display.pwm1_config(True, ra8875._PWM_CLK_DIV1024)
 display.pwm1_out(255)
 display.gfx_mode()
 
-display.fill(color565(0, 255, 0))
+display.fill_screen(color565(255, 0, 0))
+time.sleep(0.500)
+display.fill_screen(color565(255, 255, 0))
+time.sleep(0.500)
+display.fill_screen(color565(0, 255, 0))
+time.sleep(0.500)
+display.fill_screen(color565(0, 255, 255))
+time.sleep(0.500)
+display.fill_screen(color565(255, 0, 255))
+time.sleep(0.500)
+display.fill_screen(color565(0, 0, 0))
+time.sleep(0.500)
+display.fill_screen(color565(255, 255, 255))
+display.draw_circle(100, 100, 50, color565(0, 0, 0)) # 400 pixel circle centered
+display.fill_circle(100, 100, 49, color565(0, 255, 0)) # 400 pixel circle centered
+
+display.fill_rect(11, 11, 398, 198, color565(0, 0, 255))
+display.draw_rect(10, 10, 400, 200, color565(0, 255, 0))
+display.fill_round_rect(200, 10, 200, 100, 10, color565(255, 0, 0))
+display.draw_round_rect(199, 9, 202, 102, 12, color565(0, 255, 0))
+
+display.draw_ellipse(300, 100, 100, 40, color565(255, 0, 0))
+display.fill_ellipse(300, 100, 98, 38, color565(0, 255, 0))
+
+
+#display.fill_circle(int(display.width / 2) - 1, int(display.height / 2) - 1, 200, color565(255, 0, 0)) # 400 pixel circle centered
+#display.draw_line(0, 0, display.width - 1, display.height - 1, color565(0, 0, 255))
 
 # Main loop:
 #while True:
