@@ -4,8 +4,9 @@ import random
 import busio
 import digitalio
 import board
-import adafruit_ra8875 as ra8875
-from adafruit_ra8875 import color565
+import adafruit_ra8875.ra8875 as ra8875
+import adafruit_ra8875.registers as reg
+from adafruit_ra8875.ra8875 import color565
 
 BLACK = color565(0, 0, 0)
 RED = color565(255, 0, 0)
@@ -22,8 +23,8 @@ rst_pin = digitalio.DigitalInOut(board.D10)
 int_pin = digitalio.DigitalInOut(board.D11)
 int_pin.switch_to_input()
 
-# Config for display baudrate (default max is 12mhz):
-BAUDRATE = 4000000
+# Config for display baudrate (default max is 6mhz):
+BAUDRATE = 6000000
 
 # Setup SPI bus using hardware SPI:
 spi = busio.SPI(clock=board.SCK, MOSI=board.MOSI, MISO=board.MISO)
@@ -32,7 +33,7 @@ spi = busio.SPI(clock=board.SCK, MOSI=board.MOSI, MISO=board.MISO)
 display = ra8875.RA8875(spi, cs=cs_pin, rst=rst_pin, baudrate=BAUDRATE)
 display.on(True)
 display.gpiox(True)
-display.pwm1_config(True, ra8875._PWM_CLK_DIV1024)
+display.pwm1_config(True, reg.PWM_CLK_DIV1024)
 display.pwm1_out(255)
 display.gfx_mode()
 
@@ -77,7 +78,5 @@ y_scale = 1024 / display.height
 while True:
     if not int_pin.value:
         if display.touched():
-            print("Touched")
             coords = display.touch_read()
-            print(coords)
             display.fill_circle(int(coords[0]/x_scale), int(coords[1]/y_scale), 4, MAGENTA)
