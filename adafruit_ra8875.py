@@ -351,7 +351,7 @@ class RA8875:
     def read_reg(self, cmd):
         """SPI read from the device: registers"""
         self.write_cmd(cmd)
-        return self.read_data()
+        return self.read_status()
         
     def read_status(self):
         """SPI read from the device: commands"""
@@ -371,11 +371,9 @@ class RA8875:
             
     def wait_poll(self, reg, mask):
         """Wait for a masked register value to be 0"""
-        """To Do: Add a Timeout (take timestamp and compare in loop)"""
-        print("Status Mask: 0x{:02x}".format(mask))
+        """To Do: Add a 20ms Timeout (take timestamp and compare in loop)"""
         while True:
             status = self.read_reg(reg)
-            print("Status: 0x{:02x}".format(status))
             if (status & mask) == 0:
                 return True
         return False
@@ -387,7 +385,7 @@ class RA8875:
         self.rst.value = 1
         time.sleep(0.100)  # 100 milliseconds
         
-    def draw_rect(self, x, y, width, height, color):
+    def rect(self, x, y, width, height, color):
         """Draw an Unfilled Rectangle"""
         self.rect_helper(x, y, width, height, color, False)
 
@@ -395,11 +393,11 @@ class RA8875:
         """Draw a Filled Rectangle"""
         self.rect_helper(x, y, width, height, color, True)
 
-    def fill_screen(self, color):
+    def fill(self, color):
         """Fill The Screen"""
         self.rect_helper(0, 0, self.width, self.height, color, True)
 
-    def draw_circle(self, x, y, radius, color):
+    def circle(self, x, y, radius, color):
         """Draw an Unfilled Circle"""
         self.circle_helper(x, y, radius, color, False)
 
@@ -407,7 +405,7 @@ class RA8875:
         """Draw a Filled Circle"""
         self.circle_helper(x, y, radius, color, True)
 
-    def draw_ellipse(self, x_center, y_center, long_axis, short_axis, color):
+    def ellipse(self, x_center, y_center, long_axis, short_axis, color):
         """Draw an Unfilled Ellipse"""
         self.ellipse_helper(x_center, y_center, long_axis, short_axis, color, False)
 
@@ -415,7 +413,7 @@ class RA8875:
         """Draw a Filled Ellipse"""
         self.ellipse_helper(x_center, y_center, long_axis, short_axis, color, True)
 
-    def draw_curve(self, x_center, y_center, long_axis, short_axis, curve_part, color):
+    def curve(self, x_center, y_center, long_axis, short_axis, curve_part, color):
         """Draw an Unfilled Curve"""
         self.curve_helper(x_center, y_center, long_axis, short_axis, color, False)
 
@@ -423,13 +421,13 @@ class RA8875:
         """Draw an Unfilled Curve"""
         self.curve_helper(x_center, y_center, long_axis, short_axis, color, True)
         
-    def draw_hline(self, x, y, width, color):
-        self.draw_line(x, y, x + width, y, color)
+    def hline(self, x, y, width, color):
+        self.line(x, y, x + width, y, color)
 
-    def draw_vline(self, x, y, height, color):
-        self.draw_line(x, y, x, y + height, color)
+    def vline(self, x, y, height, color):
+        self.line(x, y, x, y + height, color)
 
-    def draw_line(self, x1, y1, x2, y2, color):
+    def line(self, x1, y1, x2, y2, color):
         """Draw a Line"""
         # Set X
         self.write_reg(0x91, x1)
@@ -448,7 +446,7 @@ class RA8875:
         self.write_reg(0x98, y2 >> 8)
         
         # Set Color
-        self.set_color(color)
+        self._set_color(color)
        
         # Draw it
         self.write_reg(_DCR, 0x80)
@@ -469,7 +467,7 @@ class RA8875:
         self.write_reg(0x9D, radius)
 
         # Set Color
-        self.set_color(color)
+        self._set_color(color)
         
         # Draw it
         self.write_cmd(_DCR)
@@ -499,7 +497,7 @@ class RA8875:
         self.write_reg(0x98, height >> 8)
         
         # Set Color
-        self.set_color(color)
+        self._set_color(color)
         
         # Draw it
         self.write_cmd(_DCR)
@@ -512,23 +510,23 @@ class RA8875:
 
     def fill_round_rect(self, x, y, width, height, radius, color):
         """Draw a Rounded Rectangle"""
-        self.circle_helper(x + radius, y + radius, radius, color, True)
-        self.circle_helper(x + width - radius, y + radius, radius, color, True)
-        self.circle_helper(x + radius, y + height - radius, radius, color, True)
-        self.circle_helper(x + width - radius, y + height - radius, radius, color, True)
+        self.curve_helper(x + radius, y + radius, radius, radius, 1, color, True)
+        self.curve_helper(x + width - radius, y + radius, radius, radius, 2, color, True)
+        self.curve_helper(x + radius, y + height - radius, radius, radius, 0, color, True)
+        self.curve_helper(x + width - radius, y + height - radius, radius, radius, 3, color, True)
         self.rect_helper(x + radius, y, x + width - radius, y + height, color, True)
         self.rect_helper(x, y + radius, x + width, y + height - radius, color, True)
 
-    def draw_round_rect(self, x, y, width, height, radius, color):
+    def round_rect(self, x, y, width, height, radius, color):
         """Draw an Unfilled Rounded Rect"""
         self.curve_helper(x + radius, y + radius, radius, radius, 1, color, False)
         self.curve_helper(x + width - radius, y + radius, radius, radius, 2, color, False)
         self.curve_helper(x + radius, y + height - radius, radius, radius, 0, color, False)
         self.curve_helper(x + width - radius, y + height - radius, radius, radius, 3, color, False)
-        self.draw_hline(x + radius, y, width - (radius * 2), color)
-        self.draw_hline(x + radius, y + height, width - (radius * 2), color)
-        self.draw_vline(x, y + radius, height - (radius * 2), color)
-        self.draw_vline(x + width, y + radius, height - (radius * 2), color)
+        self.hline(x + radius, y, width - (radius * 2), color)
+        self.hline(x + radius, y + height, width - (radius * 2), color)
+        self.vline(x, y + radius, height - (radius * 2), color)
+        self.vline(x + width, y + radius, height - (radius * 2), color)
         
     def curve_helper(self, x_center, y_center, long_axis, short_axis, curve_part, color, filled):
         """Draw an Ellipse"""
@@ -549,7 +547,7 @@ class RA8875:
         self.write_reg(0xA4, short_axis >> 8)
         
         # Set Color
-        self.set_color(color)
+        self._set_color(color)
         
         # Draw it
         self.write_cmd(_ELLIPSE)
@@ -579,7 +577,7 @@ class RA8875:
         self.write_reg(0xA4, short_axis >> 8)
         
         # Set Color
-        self.set_color(color)
+        self._set_color(color)
         
         # Draw it
         self.write_cmd(_ELLIPSE)
@@ -590,7 +588,7 @@ class RA8875:
             
         self.wait_poll(_ELLIPSE, _ELLIPSE_STATUS)
     
-    def set_color(self, color):
+    def _set_color(self, color):
         self.write_reg(0x63, (color & 0xf800) >> 11)
         self.write_reg(0x64, (color & 0x07e0) >> 5)
         self.write_reg(0x65, (color & 0x001f))
