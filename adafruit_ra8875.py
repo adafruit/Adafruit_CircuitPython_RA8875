@@ -353,7 +353,7 @@ class RA8875:
         self.write_cmd(cmd)
         return self.read_data()
         
-    def read_cmd(self):
+    def read_status(self):
         """SPI read from the device: commands"""
         cmd = bytearray(1)
         with self.spi_device as spi:
@@ -378,8 +378,6 @@ class RA8875:
             print("Status: 0x{:02x}".format(status))
             if (status & mask) == 0:
                 return True
-            else:
-                time.sleep(0.002)
         return False
         
     def reset(self):
@@ -434,68 +432,44 @@ class RA8875:
     def draw_line(self, x1, y1, x2, y2, color):
         """Draw a Line"""
         # Set X
-        self.write_cmd(0x91)
-        self.write_data(x1)
-        self.write_cmd(0x92)
-        self.write_data(x1 >> 8)
+        self.write_reg(0x91, x1)
+        self.write_reg(0x92, x1 >> 8)
         
         # Set Y
-        self.write_cmd(0x93)
-        self.write_data(y1)
-        self.write_cmd(0x94)
-        self.write_data(y1 >> 8)
+        self.write_reg(0x93, y1)
+        self.write_reg(0x94, y1 >> 8)
         
         # Set X1
-        self.write_cmd(0x95)
-        self.write_data(x2)
-        self.write_cmd(0x96)
-        self.write_data(x2 >> 8)
+        self.write_reg(0x95, x2)
+        self.write_reg(0x96, x2 >> 8)
         
         # Set Y1
-        self.write_cmd(0x97)
-        self.write_data(y2)
-        self.write_cmd(0x98)
-        self.write_data(y2 >> 8)
+        self.write_reg(0x97, y2)
+        self.write_reg(0x98, y2 >> 8)
         
         # Set Color
-        self.write_cmd(0x63)
-        self.write_data((color & 0xf800) >> 11)
-        self.write_cmd(0x64)
-        self.write_data((color & 0x07e0) >> 5)
-        self.write_cmd(0x65)
-        self.write_data((color & 0x001f))
-        
+        self.set_color(color)
+       
         # Draw it
-        self.write_cmd(_DCR)
-        self.write_data(0x80)
+        self.write_reg(_DCR, 0x80)
             
         self.wait_poll(_DCR, _DCR_LNSQTR_STATUS)
 
     def circle_helper(self, x, y, radius, color, filled):
         """Draw a Circle"""
         # Set X
-        self.write_cmd(0x99)
-        self.write_data(x)
-        self.write_cmd(0x9A)
-        self.write_data(x >> 8)
+        self.write_reg(0x99, x)
+        self.write_reg(0x9A, x >> 8)
         
         # Set Y
-        self.write_cmd(0x9B)
-        self.write_data(y)
-        self.write_cmd(0x9C)
-        self.write_data(y >> 8)
+        self.write_reg(0x9B, y)
+        self.write_reg(0x9C, y >> 8)
         
         # Set Radius
-        self.write_cmd(0x9D)
-        self.write_data(radius)
+        self.write_reg(0x9D, radius)
 
         # Set Color
-        self.write_cmd(0x63)
-        self.write_data((color & 0xf800) >> 11)
-        self.write_cmd(0x64)
-        self.write_data((color & 0x07e0) >> 5)
-        self.write_cmd(0x65)
-        self.write_data((color & 0x001f))
+        self.set_color(color)
         
         # Draw it
         self.write_cmd(_DCR)
@@ -509,36 +483,23 @@ class RA8875:
     def rect_helper(self, x, y, width, height, color, filled):
         """Draw a Rectangle"""
         # Set X
-        self.write_cmd(0x91)
-        self.write_data(x)
-        self.write_cmd(0x92)
-        self.write_data(x >> 8)
+        self.write_reg(0x91, x)
+        self.write_reg(0x92, x >> 8)
         
         # Set Y
-        self.write_cmd(0x93)
-        self.write_data(y)
-        self.write_cmd(0x94)
-        self.write_data(y >> 8)
+        self.write_reg(0x93, y)
+        self.write_reg(0x94, y >> 8)
         
         # Set Width
-        self.write_cmd(0x95)
-        self.write_data(width)
-        self.write_cmd(0x96)
-        self.write_data(width >> 8)
+        self.write_reg(0x95, width)
+        self.write_reg(0x96, width >> 8)
         
         # Set Height
-        self.write_cmd(0x97)
-        self.write_data(height)
-        self.write_cmd(0x98)
-        self.write_data(height >> 8)
+        self.write_reg(0x97, height)
+        self.write_reg(0x98, height >> 8)
         
         # Set Color
-        self.write_cmd(0x63)
-        self.write_data((color & 0xf800) >> 11)
-        self.write_cmd(0x64)
-        self.write_data((color & 0x07e0) >> 5)
-        self.write_cmd(0x65)
-        self.write_data((color & 0x001f))
+        self.set_color(color)
         
         # Draw it
         self.write_cmd(_DCR)
@@ -572,36 +533,23 @@ class RA8875:
     def curve_helper(self, x_center, y_center, long_axis, short_axis, curve_part, color, filled):
         """Draw an Ellipse"""
         # Set X Center
-        self.write_cmd(0xA5)
-        self.write_data(x_center)
-        self.write_cmd(0xA6)
-        self.write_data(x_center >> 8)
+        self.write_reg(0xA5, x_center)
+        self.write_reg(0xA6, x_center >> 8)
         
         # Set Y Center
-        self.write_cmd(0xA7)
-        self.write_data(y_center)
-        self.write_cmd(0xA8)
-        self.write_data(y_center >> 8)
+        self.write_reg(0xA7, y_center)
+        self.write_reg(0xA8, y_center >> 8)
         
         # Set Long Axis
-        self.write_cmd(0xA1)
-        self.write_data(long_axis)
-        self.write_cmd(0xA2)
-        self.write_data(long_axis >> 8)
+        self.write_reg(0xA1, long_axis)
+        self.write_reg(0xA2, long_axis >> 8)
         
         # Set Short Axis
-        self.write_cmd(0xA3)
-        self.write_data(short_axis)
-        self.write_cmd(0xA4)
-        self.write_data(short_axis >> 8)
+        self.write_reg(0xA3, short_axis)
+        self.write_reg(0xA4, short_axis >> 8)
         
         # Set Color
-        self.write_cmd(0x63)
-        self.write_data((color & 0xf800) >> 11)
-        self.write_cmd(0x64)
-        self.write_data((color & 0x07e0) >> 5)
-        self.write_cmd(0x65)
-        self.write_data((color & 0x001f))
+        self.set_color(color)
         
         # Draw it
         self.write_cmd(_ELLIPSE)
@@ -615,36 +563,23 @@ class RA8875:
     def ellipse_helper(self, x_center, y_center, long_axis, short_axis, color, filled):
         """Draw an Ellipse"""
         # Set X Center
-        self.write_cmd(0xA5)
-        self.write_data(x_center)
-        self.write_cmd(0xA6)
-        self.write_data(x_center >> 8)
+        self.write_reg(0xA5, x_center)
+        self.write_reg(0xA6, x_center >> 8)
         
         # Set Y Center
-        self.write_cmd(0xA7)
-        self.write_data(y_center)
-        self.write_cmd(0xA8)
-        self.write_data(y_center >> 8)
+        self.write_reg(0xA7, y_center)
+        self.write_reg(0xA8, y_center >> 8)
         
         # Set Long Axis
-        self.write_cmd(0xA1)
-        self.write_data(long_axis)
-        self.write_cmd(0xA2)
-        self.write_data(long_axis >> 8)
+        self.write_reg(0xA1, long_axis)
+        self.write_reg(0xA2, long_axis >> 8)
         
         # Set Short Axis
-        self.write_cmd(0xA3)
-        self.write_data(short_axis)
-        self.write_cmd(0xA4)
-        self.write_data(short_axis >> 8)
+        self.write_reg(0xA3, short_axis)
+        self.write_reg(0xA4, short_axis >> 8)
         
         # Set Color
-        self.write_cmd(0x63)
-        self.write_data((color & 0xf800) >> 11)
-        self.write_cmd(0x64)
-        self.write_data((color & 0x07e0) >> 5)
-        self.write_cmd(0x65)
-        self.write_data((color & 0x001f))
+        self.set_color(color)
         
         # Draw it
         self.write_cmd(_ELLIPSE)
@@ -654,7 +589,12 @@ class RA8875:
             self.write_data(0x80)
             
         self.wait_poll(_ELLIPSE, _ELLIPSE_STATUS)
-        
+    
+    def set_color(self, color):
+        self.write_reg(0x63, (color & 0xf800) >> 11)
+        self.write_reg(0x64, (color & 0x07e0) >> 5)
+        self.write_reg(0x65, (color & 0x001f))
+    
     def on(self, on):
         """Turn the Display On or Off"""
         if on: 
