@@ -96,10 +96,9 @@ class RA8875:
             self.rst.switch_to_output(value=0)
             self.reset()
 
-        x = self.read_reg(0)
-        if x == 0x75:
+        if self.read_reg(0) == 0x75:
             return False
-
+        self._txt_scale = 0
         self.pllinit()
 
         self.write_reg(reg.SYSR, reg.SYSR_16BPP | reg.SYSR_MCU8)
@@ -139,36 +138,30 @@ class RA8875:
         time.sleep(0.500)   # 500 milliseconds
 
     def pllinit(self):
-        """Initialize the PLL"""
         self.write_reg(reg.PLLC1, reg.PLLC1_PLLDIV1 + 10)
         time.sleep(0.001)   # 1 millisecond
         self.write_reg(reg.PLLC2, reg.PLLC2_DIV4)
         time.sleep(0.001)   # 1 millisecond
 
     def write_reg(self, cmd, data):
-        """SPI write to the device: registers"""
         self.write_cmd(cmd)
         self.write_data(data)
 
     def write_cmd(self, cmd):
-        """SPI write to the device: commands"""
         with self.spi_device as spi:
             spi.write(reg.CMDWR)
             spi.write(bytearray([cmd]))
 
-    def write_data(self, data):
-        """SPI write to the device: data"""
+    def write_data(self, data, raw=False):
         with self.spi_device as spi:
             spi.write(reg.DATWR)
-            spi.write(bytearray([data]))
+            spi.write(data if raw else bytearray([data]))
 
     def read_reg(self, cmd):
-        """SPI read from the device: registers"""
         self.write_cmd(cmd)
         return self.read_data()
 
     def read_status(self):
-        """SPI read from the device: commands"""
         cmd = bytearray(1)
         with self.spi_device as spi:
             spi.write(reg.CMDRD)
@@ -176,7 +169,6 @@ class RA8875:
             return struct.unpack(">B", cmd)[0]
 
     def read_data(self):
-        """SPI read from the device: data"""
         data = bytearray(1)
         with self.spi_device as spi:
             spi.write(reg.DATRD)
@@ -187,15 +179,13 @@ class RA8875:
         """Wait for a masked register value to be 0"""
         start = int(round(time.time() * 1000))
         while True:
-            status = self.read_reg(reg)
-            if (status & mask) == 0:
+            if not (self.read_reg(reg) & mask):
                 return True
             millis = int(round(time.time() * 1000))
             if millis - start >= 20:
                 return False
 
     def reset(self):
-        """Reset the device"""
         self.rst.value = 0
         time.sleep(0.100)  # 100 milliseconds
         self.rst.value = 1
@@ -285,12 +275,7 @@ class RA8875:
         self._set_color(color)
 
         # Draw it
-        self.write_cmd(reg.DCR)
-        if filled:
-            self.write_data(reg.DCR_CIRC_START | reg.DCR_FILL)
-        else:
-            self.write_data(reg.DCR_CIRC_START | reg.DCR_NOFILL)
-
+        self.write_reg(reg.DCR, reg.DCR_CIRC_START | (reg.DCR_FILL if filled else reg.DCR_NOFILL))
         self.wait_poll(reg.DCR, reg.DCR_CIRC_STATUS)
 
     def rect_helper(self, x, y, width, height, color, filled):
@@ -310,12 +295,7 @@ class RA8875:
         self._set_color(color)
 
         # Draw it
-        self.write_cmd(reg.DCR)
-        if filled:
-            self.write_data(0xB0)
-        else:
-            self.write_data(0x90)
-
+        self.write_reg(reg.DCR, 0xB0 if filled else 0x90)
         self.wait_poll(reg.DCR, reg.DCR_LNSQTR_STATUS)
 
     def fill_round_rect(self, x, y, width, height, radius, color):
@@ -357,12 +337,7 @@ class RA8875:
         self._set_color(color)
 
         # Draw it
-        self.write_cmd(reg.DCR)
-        if filled:
-            self.write_data(0xA1)
-        else:
-            self.write_data(0x81)
-
+        self.write_reg(reg.DCR, 0xA1 if filled else 0x81)
         self.wait_poll(reg.DCR, reg.DCR_LNSQTR_STATUS)
 
     def curve_helper(self, x_center, y_center, long_axis, short_axis, curve_part, color, filled):
@@ -382,12 +357,7 @@ class RA8875:
         self._set_color(color)
 
         # Draw it
-        self.write_cmd(reg.ELLIPSE)
-        if filled:
-            self.write_data(0xD0 | (curve_part & 0x03))
-        else:
-            self.write_data(0x90 | (curve_part & 0x03))
-
+        self.write_reg(reg.ELLIPSE, (0xD0 if filled else 0x90) | (curve_part & 0x03))
         self.wait_poll(reg.ELLIPSE, reg.ELLIPSE_STATUS)
 
     def ellipse_helper(self, x_center, y_center, long_axis, short_axis, color, filled):
@@ -407,13 +377,13 @@ class RA8875:
         self._set_color(color)
 
         # Draw it
-        self.write_cmd(reg.ELLIPSE)
-        if filled:
-            self.write_data(0xC0)
-        else:
-            self.write_data(0x80)
-
+        self.write_reg(reg.ELLIPSE, 0xC0 if filled else 0x80)
         self.wait_poll(reg.ELLIPSE, reg.ELLIPSE_STATUS)
+
+    def _set_bg_color(self, color):
+        self.write_reg(0x60, (color & 0xf800) >> 11)
+        self.write_reg(0x61, (color & 0x07e0) >> 5)
+        self.write_reg(0x62, (color & 0x001f))
 
     def _set_color(self, color):
         self.write_reg(0x63, (color & 0xf800) >> 11)
@@ -421,29 +391,16 @@ class RA8875:
         self.write_reg(0x65, (color & 0x001f))
 
     def on(self, on):
-        """Turn the Display On or Off"""
-        if on:
-            self.write_reg(reg.PWRR, reg.PWRR_NORMAL | reg.PWRR_DISPON)
-        else:
-            self.write_reg(reg.PWRR, reg.PWRR_NORMAL | reg.PWRR_DISPOFF)
+        self.write_reg(reg.PWRR, reg.PWRR_NORMAL | (reg.PWRR_DISPON if on else reg.PWRR_DISPOFF))
 
     def gpiox(self, on):
-        if on:
-            self.write_reg(reg.GPIOX, 1)
-        else:
-            self.write_reg(reg.GPIOX, 0)
+        self.write_reg(reg.GPIOX, 1 if on else 0)
 
     def pwm1_config(self, on, clock):
-        if on:
-            self.write_reg(reg.P1CR, reg.P1CR_ENABLE | (clock & 0xF))
-        else:
-            self.write_reg(reg.P1CR, reg.P1CR_DISABLE | (clock & 0xF))
+        self.write_reg(reg.P1CR, (reg.P1CR_ENABLE if on else reg.P1CR_DISABLE) | (clock & 0xF))
 
     def pwm2_config(self, on, clock):
-        if on:
-            self.write_reg(reg.P2CR, reg.P2R_ENABLE | (clock & 0xF))
-        else:
-            self.write_reg(reg.P2CR, reg.P2CR_DISABLE | (clock & 0xF))
+        self.write_reg(reg.P2CR, (reg.P2R_ENABLE if on else reg.P2CR_DISABLE) | (clock & 0xF))
 
     def pwm1_out(self, p):
         self.write_reg(reg.P1DCR, p)
@@ -455,17 +412,13 @@ class RA8875:
         if on:
             self.write_reg(reg.TPCR0, reg.TPCR0_ENABLE | reg.TPCR0_WAIT_4096CLK | reg.TPCR0_WAKEENABLE | self.adc_clk)
             self.write_reg(reg.TPCR1, reg.TPCR1_AUTO | reg.TPCR1_DEBOUNCE)
-            intc1 = self.read_reg(reg.INTC1)
-            self.write_reg(reg.INTC1, intc1 | reg.INTC1_TP)
+            self.write_reg(reg.INTC1, self.read_reg(reg.INTC1) | reg.INTC1_TP)
         else:
             self.write_reg(reg.INTC1, self.read_reg(reg.INTC1) & ~reg.INTC1_TP)
             self.write_reg(reg.TPCR0, reg.TPCR0_DISABLE)
 
     def touched(self):
-        if self.read_reg(reg.INTC2) & reg.INTC2_TP:
-            return True
-        else:
-            return False
+        return True if self.read_reg(reg.INTC2) & reg.INTC2_TP else False
 
     def touch_read(self):
         tx = self.read_reg(reg.TPXH)
@@ -479,7 +432,36 @@ class RA8875:
         return [tx, ty]
 
     def gfx_mode(self):
-        self.write_cmd(reg.MWCR0)
-        temp = self.read_data()
-        temp &= ~reg.MWCR0_TXTMODE
-        self.write_data(temp)
+        self.write_reg(reg.MWCR0, self.read_data() & ~reg.MWCR0_TXTMODE)
+
+    def txt_mode(self):
+        self.write_reg(reg.MWCR0, self.read_data() | reg.MWCR0_TXTMODE)
+        self.write_reg(reg.FNCR0, self.read_data() & ~((1<<7) | (1<<5)))
+
+    def txt_set_cursor(self, x, y):
+        self.write_reg(0x2A, x & 0xFF)
+        self.write_reg(0x2B, x >> 8)
+        self.write_reg(0x2C, y & 0xFF)
+        self.write_reg(0x2D, y >> 8)
+
+    def txt_color(self, fgcolor, bgcolor):
+        self._set_color(fgcolor)
+        self._set_bg_color(bgcolor)
+        self.write_reg(reg.FNCR1, self.read_data() & ~(1<<6))
+
+    def txt_trans(self, fgcolor):
+        self._set_color(fgcolor)
+        self.write_reg(reg.FNCR1, self.read_data() | 1<<6)
+
+    def txt_write(self, string):
+        self.write_cmd(reg.MRWC)
+        for c in string:
+            self.write_data(c, True)
+            if self._txt_scale > 0:
+                time.sleep(0.001)
+
+    def txt_size(self, scale):
+        if scale > 3:
+            scale = 3
+        self.write_reg(reg.FNCR1, (self.read_data() & ~(0xF)) | (scale << 2) | scale)
+        self._txt_scale = scale;

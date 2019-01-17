@@ -69,11 +69,19 @@ display.fill_curve(50, 100, 78, 38, 2, WHITE)
 display.fill_circle(int(display.width / 2) - 1, int(display.height / 2) - 1, 200, color565(255, 0, 0)) # 400 pixel circle centered
 display.line(0, 0, display.width - 1, display.height - 1, color565(0, 0, 255))
 
+display.txt_mode()
+display.txt_set_cursor(240, 240)
+display.txt_trans(BLACK)
+display.txt_size(2)
+testvar = 99
+display.txt_write("Player Score: " + str(testvar))
+
+display.gfx_mode()
 display.touch_enable(True)
 
 x_scale = 1024 / display.width
 y_scale = 1024 / display.height
-
+last_coords = [None, None]
 # Main loop:
 while True:
     if not int_pin.value:
