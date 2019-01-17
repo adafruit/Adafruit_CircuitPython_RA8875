@@ -31,11 +31,7 @@ spi = busio.SPI(clock=board.SCK, MOSI=board.MOSI, MISO=board.MISO)
 
 # Create and setup the RA8875 display:
 display = ra8875.RA8875(spi, cs=cs_pin, rst=rst_pin, baudrate=BAUDRATE)
-display.on(True)
-display.gpiox(True)
-display.pwm1_config(True, reg.PWM_CLK_DIV1024)
-display.pwm1_out(255)
-display.gfx_mode()
+display.init()
 
 display.fill(RED)
 time.sleep(0.500)
@@ -48,8 +44,6 @@ time.sleep(0.500)
 display.fill(MAGENTA)
 time.sleep(0.500)
 display.fill(BLACK)
-time.sleep(0.500)
-display.fill(WHITE)
 display.circle(100, 100, 50, BLACK)
 display.fill_circle(100, 100, 49, BLUE)
 
@@ -69,14 +63,12 @@ display.fill_curve(50, 100, 78, 38, 2, WHITE)
 display.fill_circle(int(display.width / 2) - 1, int(display.height / 2) - 1, 200, color565(255, 0, 0)) # 400 pixel circle centered
 display.line(0, 0, display.width - 1, display.height - 1, color565(0, 0, 255))
 
-display.txt_mode()
 display.txt_set_cursor(240, 240)
-display.txt_trans(BLACK)
+display.txt_trans(WHITE)
 display.txt_size(2)
 testvar = 99
 display.txt_write("Player Score: " + str(testvar))
 
-display.gfx_mode()
 display.touch_enable(True)
 
 x_scale = 1024 / display.width
