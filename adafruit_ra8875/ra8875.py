@@ -74,11 +74,11 @@ class RA8875:
         if self.rst:
             self.rst.switch_to_output(value=0)
             self.reset()
-
         if self.read_reg(0) == 0x75:
             return False
         self._txt_scale = 0
         self._mode = None
+        self._tpin = None
 
     def init(self, start_on=True):
         if self.width == 800 and self.height == 480:
@@ -109,11 +109,11 @@ class RA8875:
         time.sleep(0.001)   # 1 millisecond
 
         # Horizontal settings registers
-        self.write_reg(reg.HDWR, int(self.width / 8) - 1)
+        self.write_reg(reg.HDWR, self.width // 8 - 1)
         self.write_reg(reg.HNDFTR, reg.HNDFTR_DE_HIGH)
-        self.write_reg(reg.HNDR, int((hsync_nondisp - 2) / 8))
-        self.write_reg(reg.HSTR, int(hsync_start/8) - 1)
-        self.write_reg(reg.HPWR, reg.HPWR_LOW + int(hsync_pw/8 - 1))
+        self.write_reg(reg.HNDR, (hsync_nondisp - 2) // 8)
+        self.write_reg(reg.HSTR, hsync_start // 8 - 1)
+        self.write_reg(reg.HPWR, reg.HPWR_LOW + hsync_pw // 8 - 1)
 
         # Vertical settings registers
         self.write_reg(reg.VDHR0, (self.height - 1) & 0xFF)
@@ -183,15 +183,15 @@ class RA8875:
             spi.readinto(data)
             return struct.unpack(">B", data)[0]
 
-    def wait_poll(self, reg, mask):
-        """Wait for a masked register value to be 0"""
+    def wait_poll(self, register, mask):
         start = int(round(time.time() * 1000))
         while True:
-            if not (self.read_reg(reg) & mask):
+            time.sleep(0.001)
+            regval = self.read_reg(register)
+            if regval & mask == 0:
                 return True
             millis = int(round(time.time() * 1000))
-            if millis - start >= 20:
-                return False
+            if millis - start >= 20: return False
 
     def reset(self):
         self.rst.value = 0
@@ -205,8 +205,7 @@ class RA8875:
     def fill_rect(self, x, y, width, height, color):
         self.rect_helper(x, y, width, height, color, True)
 
-    def fill(self, color):
-        """Fill The Screen"""
+    def fill(self, color): # Fill The Screen
         self.rect_helper(0, 0, self.width, self.height, color, True)
 
     def circle(self, x, y, radius, color):
@@ -233,23 +232,55 @@ class RA8875:
     def fill_triangle(self, x1, y1, x2, y2, x3, y3, color):
         self.triangle_helper(x1, y1, x2, y2, x3, y3, color, True)
 
-    def pixel(self, x, y, color):
-        self.gfx_mode()
+    def _encode_pos(self, x, y):
+        """Encode a postion into bytes."""
+        return struct.pack(">HH", x, y)
 
+    def _encode_pixel(self, color):
+        """Encode a pixel color into bytes."""
+        return struct.pack(">H", color)
+
+    def _decode_pixel(self, data):
+        """Decode bytes into a pixel color."""
+        return color565(*struct.unpack(">BBB", data))
+
+    def setxy(self, x, y):
+        self.gfx_mode()
         self.write_reg(reg.CURH0, x)
         self.write_reg(reg.CURH1, x >> 8)
         self.write_reg(reg.CURV0, y)
         self.write_reg(reg.CURV1, y >> 8)
+
+    def pixel(self, x, y, color):
+        self.setxy(x, y)
         self.write_cmd(reg.MRWC)
-        self.write_data(color >> 8)
-        self.write_data(color & 0xFF)
+        self.write_data(self._encode_pixel(color), True)
+
+    def push_pixels(self, pixel_data):
+        self.gfx_mode()
+        self.write_cmd(reg.MRWC)
+        self.write_data(pixel_data, True)
+
+    def set_window(self, x, y, width, height):
+        """Set an Active Drawing Area, which can be used in conjuntion with push_pixels
+        for faster drawing"""
+        if x + width >= self.width: width = self.width - x
+        if y + height >= self.height: height = self.height - y
+        # X
+        self.write_reg(reg.HSAW0,x & 0xFF)
+        self.write_reg(reg.HSAW0+1,x >> 8)
+        self.write_reg(reg.HEAW0,(x + width) & 0xFF)
+        self.write_reg(reg.HEAW0+1,(x + width) >> 8)
+        # Y
+        self.write_reg(reg.VSAW0,y & 0xFF)
+        self.write_reg(reg.VSAW0+1,y >> 8)
+        self.write_reg(reg.VEAW0,(y + height) & 0xFF)
+        self.write_reg(reg.VEAW0+1,(y + height) >> 8)
 
     def hline(self, x, y, width, color):
-        """Draw a Horizontal Line"""
         self.line(x, y, x + width, y, color)
 
     def vline(self, x, y, height, color):
-        """Draw a Vertical Line"""
         self.line(x, y, x, y + height, color)
 
     def line(self, x1, y1, x2, y2, color):
@@ -287,7 +318,7 @@ class RA8875:
 
         # Draw it
         self.write_reg(reg.DCR, reg.DCR_CIRC_START | (reg.DCR_FILL if filled else reg.DCR_NOFILL))
-        self.wait_poll(reg.DCR, reg.DCR_CIRC_STATUS)
+        print(self.wait_poll(reg.DCR, reg.DCR_CIRC_STATUS))
 
     def rect_helper(self, x, y, width, height, color, filled):
         self.gfx_mode()
@@ -425,20 +456,32 @@ class RA8875:
     def pwm2_out(self, p):
         self.write_reg(reg.P2DCR, p)
 
+    def touch_init(self, tpin):
+        self._tpin = tpin
+        self._tpin.direction.INPUT
+        self.write_reg(reg.INTC2, reg.INTC2_TP)
+        self.touch_enable(True)
+
     def touch_enable(self, on):
-        self.gfx_mode()
-        if on:
-            self.write_reg(reg.TPCR0, reg.TPCR0_ENABLE | reg.TPCR0_WAIT_4096CLK | reg.TPCR0_WAKEENABLE | self.adc_clk)
-            self.write_reg(reg.TPCR1, reg.TPCR1_AUTO | reg.TPCR1_DEBOUNCE)
-            self.write_reg(reg.INTC1, self.read_reg(reg.INTC1) | reg.INTC1_TP)
-        else:
-            self.write_reg(reg.INTC1, self.read_reg(reg.INTC1) & ~reg.INTC1_TP)
-            self.write_reg(reg.TPCR0, reg.TPCR0_DISABLE)
+        if self._tpin is not None:
+            self.gfx_mode()
+            if on:
+                self.write_reg(reg.TPCR0, reg.TPCR0_ENABLE | reg.TPCR0_WAIT_4096CLK | reg.TPCR0_WAKEENABLE | self.adc_clk)
+                self.write_reg(reg.TPCR1, reg.TPCR1_AUTO | reg.TPCR1_DEBOUNCE)
+                self.write_data(self.read_reg(reg.INTC1) | reg.INTC1_TP)
+            else:
+                self.write_data(self.read_reg(reg.INTC1) & ~reg.INTC1_TP)
+                self.write_reg(reg.TPCR0, reg.TPCR0_DISABLE)
 
     def touched(self):
-        return True if self.read_reg(reg.INTC2) & reg.INTC2_TP else False
+        if self._tpin is None: return False
+        self.gfx_mode()
+        if self._tpin.value: return False
+        istouched = True if self.read_reg(reg.INTC2) & reg.INTC2_TP else False
+        return istouched
 
     def touch_read(self):
+        self.gfx_mode()
         tx = self.read_reg(reg.TPXH)
         ty = self.read_reg(reg.TPYH)
         temp = self.read_reg(reg.TPXYL)
@@ -450,16 +493,14 @@ class RA8875:
         return [tx, ty]
 
     def gfx_mode(self):
-        if self._mode == "gfx":
-            return
-        self.write_reg(reg.MWCR0, self.read_reg(reg.MWCR0) & ~reg.MWCR0_TXTMODE)
+        if self._mode == "gfx": return
+        self.write_data(self.read_reg(reg.MWCR0) & ~reg.MWCR0_TXTMODE)
         self._mode = "gfx"
 
     def txt_mode(self):
-        if self._mode == "txt":
-            return
-        self.write_reg(reg.MWCR0, self.read_reg(reg.MWCR0) | reg.MWCR0_TXTMODE)
-        self.write_reg(reg.FNCR0, self.read_reg(reg.FNCR0) & ~((1<<7) | (1<<5)))
+        if self._mode == "txt": return
+        self.write_data(self.read_reg(reg.MWCR0) | reg.MWCR0_TXTMODE)
+        self.write_data(self.read_reg(reg.FNCR0) & ~((1<<7) | (1<<5)))
         self._mode = "txt"
 
     def txt_set_cursor(self, x, y):
@@ -472,12 +513,12 @@ class RA8875:
     def txt_color(self, fgcolor, bgcolor):
         self._set_color(fgcolor)
         self._set_bg_color(bgcolor)
-        self.write_reg(reg.FNCR1, self.read_reg(reg.FNCR1) & ~(1<<6))
+        self.write_data(self.read_reg(reg.FNCR1) & ~(1<<6))
 
     def txt_trans(self, color):
         self.txt_mode()
         self._set_color(color)
-        self.write_reg(reg.FNCR1, self.read_reg(reg.FNCR1) | 1<<6)
+        self.write_data(self.read_reg(reg.FNCR1) | 1<<6)
 
     def txt_write(self, string):
         self.txt_mode()
@@ -489,7 +530,6 @@ class RA8875:
 
     def txt_size(self, scale):
         self.txt_mode()
-        if scale > 3:
-            scale = 3
-        self.write_reg(reg.FNCR1, (self.read_reg(reg.FNCR1) & ~(0xF)) | (scale << 2) | scale)
+        if scale > 3: scale = 3
+        self.write_data((self.read_reg(reg.FNCR1) & ~(0xF)) | (scale << 2) | scale)
         self._txt_scale = scale;
