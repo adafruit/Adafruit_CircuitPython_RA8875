@@ -68,29 +68,23 @@ def color565(r, g=0, b=0):
     return (r & 0xf8) << 8 | (g & 0xfc) << 3 | b >> 3
 #pylint: enable-msg=invalid-name
 
-class RA8875(object):
-
-    #pylint: disable=too-many-instance-attributes
-
+class RA8875_Device(object):
     """Set Initial Variables"""
     #pylint: disable-msg=invalid-name,too-many-arguments
     def __init__(self, spi, cs, rst=None, width=800, height=480,
-                 baudrate=12000000, polarity=0, phase=0):
+                 baudrate=6000000, polarity=0, phase=0):
         self.spi_device = spi_device.SPIDevice(spi, cs, baudrate=baudrate,
                                                polarity=polarity, phase=phase)
         self.width = width
         self.height = height
+        self._mode = None
+        self._tpin = None
         self.rst = rst
         if self.rst:
             self.rst.switch_to_output(value=0)
             self.reset()
         if self.read_reg(0) == 0x75:
             return
-        self._txt_scale = 0
-        self._mode = None
-        self._tpin = None
-        self._set_bgcolor = False
-        self._touch_init = False
         self._adc_clk = reg.TPCR0_ADCCLK_DIV16
     #pylint: enable-msg=invalid-name,too-many-arguments
 
@@ -156,9 +150,9 @@ class RA8875(object):
 
         # Turn the display on, enable GPIO, and setup the backlight
         self.turn_on(start_on)
-        self.gpiox(True)
-        self.pwm1_config(True, reg.PWM_CLK_DIV1024)
-        self.pwm1_out(255)
+        self._gpiox(True)
+        self._pwm1_config(True, reg.PWM_CLK_DIV1024)
+        self._pwm1_out(255)
 
     def pllinit(self):
         """Init the Controller PLL"""
@@ -239,25 +233,88 @@ class RA8875(object):
         """Put the display in sleep mode or turn off sleep mode"""
         self.write_reg(reg.PWRR, reg.PWRR_DISPOFF if sleep else (reg.PWRR_DISPOFF | reg.PWRR_SLEEP))
 
-    def gpiox(self, gpio_on):
+    def _gpiox(self, gpio_on):
         """Enable the RA8875 GPIOs"""
         self.write_reg(reg.GPIOX, 1 if gpio_on else 0)
 
-    def pwm1_config(self, pwm_on, clock):
+    def _pwm1_config(self, pwm_on, clock):
         """Configure the backlight PWM Clock Speed"""
         self.write_reg(reg.P1CR, (reg.P1CR_ENABLE if pwm_on else reg.P1CR_DISABLE) | (clock & 0xF))
 
-    def pwm2_config(self, pwm_on, clock):
+    def _pwm2_config(self, pwm_on, clock):
         """Configure secondary backlight PWM Clock Speed"""
         self.write_reg(reg.P2CR, (reg.P2CR_ENABLE if pwm_on else reg.P2CR_DISABLE) | (clock & 0xF))
 
-    def pwm1_out(self, level):
+    def _pwm1_out(self, level):
         """Configure the backlight level (0-255)"""
         self.write_reg(reg.P1DCR, level)
 
-    def pwm2_out(self, level):
+    def _pwm2_out(self, level):
         """Configure the secondary backlight level (0-255)"""
         self.write_reg(reg.P2DCR, level)
+
+    def touch_init(self, tpin=None, enable=True):
+        """Initialize the Touchscreen"""
+        if tpin is not None:
+            tpin.direction = Direction.INPUT
+        self._tpin = tpin
+        self.write_reg(reg.INTC2, reg.INTC2_TP)
+        self.touch_enable(enable)
+
+    def touch_enable(self, touch_on):
+        """Enable touch functionality."""
+        if touch_on:
+            self.write_reg(reg.TPCR0, reg.TPCR0_ENABLE | reg.TPCR0_WAIT_4096CLK |
+                           reg.TPCR0_WAKEENABLE | self._adc_clk)
+            self.write_reg(reg.TPCR1, reg.TPCR1_AUTO | reg.TPCR1_DEBOUNCE)
+            self.write_data(self.read_reg(reg.INTC1) | reg.INTC1_TP)
+        else:
+            self.write_data(self.read_reg(reg.INTC1) & ~reg.INTC1_TP)
+            self.write_reg(reg.TPCR0, reg.TPCR0_DISABLE)
+
+    def touched(self):
+        """Check if the Screen is currently being touched"""
+        if self._tpin is not None:
+            self._gfx_mode() # Hack that seems to work
+            if self._tpin.value:
+                return False
+        istouched = True if self.read_reg(reg.INTC2) & reg.INTC2_TP else False
+        return istouched
+
+    def touch_read(self):
+        """Read the Coordinates of the current Touch Position"""
+        touch_x = self.read_reg(reg.TPXH)
+        touch_y = self.read_reg(reg.TPYH)
+        temp = self.read_reg(reg.TPXYL)
+        touch_x = touch_x << 2
+        touch_y = touch_y << 2
+        touch_x |= temp & 0x03
+        touch_y |= (temp >> 2) & 0x03
+        self.write_reg(reg.INTC2, reg.INTC2_TP)
+        return [touch_x, touch_y]
+
+    def _gfx_mode(self):
+        if self._mode == "gfx":
+            return
+        self.write_data(self.read_reg(reg.MWCR0) & ~reg.MWCR0_TXTMODE)
+        self._mode = "gfx"
+
+    def _txt_mode(self):
+        if self._mode == "txt":
+            return
+        self.write_data(self.read_reg(reg.MWCR0) | reg.MWCR0_TXTMODE)
+        self.write_data(self.read_reg(reg.FNCR0) & ~((1<<7) | (1<<5)))
+        self._mode = "txt"
+
+class RA8875Display(RA8875_Device):
+    """Set Initial Variables"""
+    #pylint: disable-msg=invalid-name,too-many-arguments
+    def __init__(self, spi, cs, rst=None, width=800, height=480,
+                 baudrate=6000000, polarity=0, phase=0):
+        self._txt_scale = 0
+        super(RA8875Display, self).__init__(spi, cs, rst, width, height,
+                                            baudrate, polarity, phase)
+    #pylint: enable-msg=invalid-name,too-many-arguments
 
     #pylint: disable-msg=invalid-name
     def txt_set_cursor(self, x, y):
@@ -298,51 +355,63 @@ class RA8875(object):
         self.write_data((self.read_reg(reg.FNCR1) & ~(0xF)) | (scale << 2) | scale)
         self._txt_scale = scale
 
-    def touch_init(self, tpin=None):
-        """Initialize the Touchscreen"""
-        if tpin is not None:
-            tpin.direction = Direction.INPUT
-        self._tpin = tpin
-        self.write_reg(reg.INTC2, reg.INTC2_TP)
-        self.set_bgcolor(True)
-        self._touch_init = True
+    #pylint: disable-msg=invalid-name
+    def setxy(self, x, y):
+        """Set the X and Y coordinates of the Graphic Cursor"""
+        self._gfx_mode()
+        self.write_reg(reg.CURH0, x)
+        self.write_reg(reg.CURH1, x >> 8)
+        self.write_reg(reg.CURV0, y)
+        self.write_reg(reg.CURV1, y >> 8)
+    #pylint: enable-msg=invalid-name
 
-    def touch_enable(self, touch_on):
-        """Enable touch functionality."""
-        if not self._touch_init:
-            self.touch_init() # Initialize without an interrupt pin
+    def set_bgcolor(self, color):
+        """Set Text Background Color"""
+        self.write_reg(0x60, (color & 0xf800) >> 11)
+        self.write_reg(0x61, (color & 0x07e0) >> 5)
+        self.write_reg(0x62, (color & 0x001f))
 
-        if touch_on:
-            self.write_reg(reg.TPCR0, reg.TPCR0_ENABLE | reg.TPCR0_WAIT_4096CLK |
-                           reg.TPCR0_WAKEENABLE | self._adc_clk)
-            self.write_reg(reg.TPCR1, reg.TPCR1_AUTO | reg.TPCR1_DEBOUNCE)
-            self.write_data(self.read_reg(reg.INTC1) | reg.INTC1_TP)
-        else:
-            self.write_data(self.read_reg(reg.INTC1) & ~reg.INTC1_TP)
-            self.write_reg(reg.TPCR0, reg.TPCR0_DISABLE)
+    def set_color(self, color):
+        """Set Foreground Color"""
+        self.write_reg(0x63, (color & 0xf800) >> 11)
+        self.write_reg(0x64, (color & 0x07e0) >> 5)
+        self.write_reg(0x65, (color & 0x001f))
 
-    def touched(self):
-        """Check if the Screen is currently being touched"""
-        if self._tpin is not None:
-            self._gfx_mode() # Hack that seems to work
-            if self._tpin.value:
-                return False
-        istouched = True if self.read_reg(reg.INTC2) & reg.INTC2_TP else False
-        return istouched
+    #pylint: disable-msg=invalid-name
+    def pixel(self, x, y, color):
+        """Draw a pixel at the X and Y coordinates of the specified color"""
+        self.setxy(x, y)
+        self.write_reg(reg.MRWC, struct.pack(">H", color), True)
+    #pylint: enable-msg=invalid-name
 
-    def touch_read(self):
-        """Read the Coordinates of the current Touch Position"""
-        touch_x = self.read_reg(reg.TPXH)
-        touch_y = self.read_reg(reg.TPYH)
-        temp = self.read_reg(reg.TPXYL)
-        touch_x = touch_x << 2
-        touch_y = touch_y << 2
-        touch_x |= temp & 0x03
-        touch_y |= (temp >> 2) & 0x03
-        self.write_reg(reg.INTC2, reg.INTC2_TP)
+    def push_pixels(self, pixel_data):
+        """Push a stream of pixel data to the screen. Additional
+        data can be pushed with write_data for lower overhead."""
+        self._gfx_mode()
+        self.write_reg(reg.MRWC, pixel_data, True)
 
-        return [touch_x, touch_y]
+    #pylint: disable-msg=invalid-name,too-many-arguments
+    def set_window(self, x, y, width, height):
+        """Set an Active Drawing Window, which can be used in
+        conjuntion with push_pixels for faster drawing"""
+        if x + width >= self.width:
+            width = self.width - x
+        if y + height >= self.height:
+            height = self.height - y
+        # X
+        self.write_reg(reg.HSAW0, x & 0xFF)
+        self.write_reg(reg.HSAW0 + 1, x >> 8)
+        self.write_reg(reg.HEAW0, (x + width) & 0xFF)
+        self.write_reg(reg.HEAW0 + 1, (x + width) >> 8)
+        # Y
+        self.write_reg(reg.VSAW0, y & 0xFF)
+        self.write_reg(reg.VSAW0 + 1, y >> 8)
+        self.write_reg(reg.VEAW0, (y + height) & 0xFF)
+        self.write_reg(reg.VEAW0 + 1, (y + height) >> 8)
+    #pylint: enable-msg=invalid-name,too-many-arguments
 
+class RA8875(RA8875Display):
+    """Set Initial Variables"""
     #pylint: disable-msg=invalid-name,too-many-arguments
     def rect(self, x, y, width, height, color):
         """Draw a rectangle (HW Accelerated)"""
@@ -387,61 +456,6 @@ class RA8875(object):
     def fill_triangle(self, x1, y1, x2, y2, x3, y3, color):
         """Draw a Filled Triangle (HW Accelerated)"""
         self._triangle_helper(x1, y1, x2, y2, x3, y3, color, True)
-    #pylint: enable-msg=invalid-name,too-many-arguments
-
-    #pylint: disable-msg=invalid-name
-    def setxy(self, x, y):
-        """Set the X and Y coordinates of the Graphic Cursor"""
-        self._gfx_mode()
-        self.write_reg(reg.CURH0, x)
-        self.write_reg(reg.CURH1, x >> 8)
-        self.write_reg(reg.CURV0, y)
-        self.write_reg(reg.CURV1, y >> 8)
-    #pylint: enable-msg=invalid-name
-
-    def set_bgcolor(self, color):
-        """Set Text Background Color"""
-        self.write_reg(0x60, (color & 0xf800) >> 11)
-        self.write_reg(0x61, (color & 0x07e0) >> 5)
-        self.write_reg(0x62, (color & 0x001f))
-
-    def set_color(self, color):
-        """Set Foreground Color"""
-        self.write_reg(0x63, (color & 0xf800) >> 11)
-        self.write_reg(0x64, (color & 0x07e0) >> 5)
-        self.write_reg(0x65, (color & 0x001f))
-
-    #pylint: disable-msg=invalid-name
-    def pixel(self, x, y, color):
-        """Draw a pixel at the X and Y coordinates of the specified color"""
-        self.setxy(x, y)
-        self.write_reg(reg.MRWC, self._encode_pixel(color), True)
-    #pylint: enable-msg=invalid-name
-
-    def push_pixels(self, pixel_data):
-        """Push a stream of pixel data to the screen. Additional
-        data can be pushed with write_data for lower overhead."""
-        self._gfx_mode()
-        self.write_reg(reg.MRWC, pixel_data, True)
-
-    #pylint: disable-msg=invalid-name,too-many-arguments
-    def set_window(self, x, y, width, height):
-        """Set an Active Drawing Window, which can be used in
-        conjuntion with push_pixels for faster drawing"""
-        if x + width >= self.width:
-            width = self.width - x
-        if y + height >= self.height:
-            height = self.height - y
-        # X
-        self.write_reg(reg.HSAW0, x & 0xFF)
-        self.write_reg(reg.HSAW0 + 1, x >> 8)
-        self.write_reg(reg.HEAW0, (x + width) & 0xFF)
-        self.write_reg(reg.HEAW0 + 1, (x + width) >> 8)
-        # Y
-        self.write_reg(reg.VSAW0, y & 0xFF)
-        self.write_reg(reg.VSAW0 + 1, y >> 8)
-        self.write_reg(reg.VEAW0, (y + height) & 0xFF)
-        self.write_reg(reg.VEAW0 + 1, (y + height) >> 8)
 
     def hline(self, x, y, width, color):
         """Draw a Horizontal Line (HW Accelerated)"""
@@ -494,13 +508,7 @@ class RA8875(object):
         self._curve_helper(x + width - radius, y + height - radius, radius, radius, 3, color, True)
         self._rect_helper(x + radius, y, x + width - radius, y + height, color, True)
         self._rect_helper(x, y + radius, x + width, y + height - radius, color, True)
-    #pylint: enable-msg=invalid-name,too-many-arguments
 
-    def _encode_pixel(self, color):
-        """Encode a pixel color into bytes."""
-        return struct.pack(">H", color)
-
-    #pylint: disable-msg=invalid-name,too-many-arguments
     def _circle_helper(self, x, y, radius, color, filled):
         """General Circle Drawing Function"""
         self._gfx_mode()
@@ -608,16 +616,3 @@ class RA8875(object):
         self.write_reg(reg.ELLIPSE, 0xC0 if filled else 0x80)
         self.wait_poll(reg.ELLIPSE, reg.ELLIPSE_STATUS)
     #pylint: enable-msg=invalid-name,too-many-arguments
-
-    def _gfx_mode(self):
-        if self._mode == "gfx":
-            return
-        self.write_data(self.read_reg(reg.MWCR0) & ~reg.MWCR0_TXTMODE)
-        self._mode = "gfx"
-
-    def _txt_mode(self):
-        if self._mode == "txt":
-            return
-        self.write_data(self.read_reg(reg.MWCR0) | reg.MWCR0_TXTMODE)
-        self.write_data(self.read_reg(reg.FNCR0) & ~((1<<7) | (1<<5)))
-        self._mode = "txt"
