@@ -1,11 +1,14 @@
 # Quick bitmap test of RA8875 with Feather M4
-import time
 import busio
 import digitalio
 import board
 
 import adafruit_ra8875.ra8875 as ra8875
 from adafruit_ra8875.ra8875 import color565
+try:
+    import struct
+except ImportError:
+    import ustruct as struct
 
 WHITE = color565(255, 255, 255)
 
@@ -24,10 +27,15 @@ display = ra8875.RA8875(spi, cs=cs_pin, rst=rst_pin, baudrate=BAUDRATE)
 display.init()
 display.fill(WHITE)
 
-class BMP:
+class BMP(object):
     def __init__(self, filename):
         self.filename = filename
-        self.colors = 0
+        self.colors = None
+        self.data = 0
+        self.data_size = 0
+        self.bpp = 0
+        self.width = 0
+        self.height=0
 
     def read_header(self):
         if self.colors:
@@ -45,22 +53,20 @@ class BMP:
             f.seek(46)
             self.colors = int.from_bytes(f.read(4), 'little')
 
-    def draw(self, display, x=0, y=0):
+    def draw(self, disp, x=0, y=0):
         self.read_header()
         print("{:d}x{:d} image".format(self.width, self.height))
         print("{:d}-bit encoding detected".format(self.bpp))
-        line = 0;
+        line = 0
         line_size = self.width * (self.bpp//8)
-        mod4 = line_size % 4
-        if mod4 !=0:
-            line_size += (4-mod4)
-        self.bmp_data = b''
-        self.current_line_data = b''
+        if line_size % 4 != 0:
+            line_size += (4 - line_size % 4)
+        current_line_data = b''
         with open(self.filename, 'rb') as f:
             f.seek(self.data)
-            display.set_window(x, y, self.width, self.height)
+            disp.set_window(x, y, self.width, self.height)
             for line in range(self.height):
-                self.current_line_data = b''
+                current_line_data = b''
                 line_data = f.read(line_size)
                 for i in range(0, line_size, self.bpp//8):
                     if (line_size-i) < self.bpp//8:
@@ -72,10 +78,10 @@ class BMP:
                     if self.bpp == 24:
                         b3 = line_data[i+2]
                         color = color565(b1, b2, b3)
-                    c = display._encode_pixel(color)
-                    self.current_line_data = self.current_line_data + c
-                display.setxy(x, self.height - line + y)
-                display.push_pixels(self.current_line_data)
-            display.set_window(0, 0, display.width, display.height)
+                    c = struct.pack(">H", color)
+                    current_line_data = current_line_data + c
+                disp.setxy(x, self.height - line + y)
+                disp.push_pixels(current_line_data)
+            disp.set_window(0, 0, disp.width, disp.height)
 
 BMP("/blinka.bmp").draw(display, 287, 127)

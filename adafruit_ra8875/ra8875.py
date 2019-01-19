@@ -169,14 +169,14 @@ class RA8875_Device(object):
     def write_cmd(self, cmd):
         """Select a register and write a byte"""
         with self.spi_device as spi:
-            spi.write(reg.CMDWR)
-            spi.write(bytearray([cmd]))
+            spi.write(reg.CMDWR)  # pylint: disable=no-member
+            spi.write(bytearray([cmd]))  # pylint: disable=no-member
 
     def write_data(self, data, raw=False):
         """Write a byte of data or push raw data out"""
         with self.spi_device as spi:
-            spi.write(reg.DATWR)
-            spi.write(data if raw else bytearray([data]))
+            spi.write(reg.DATWR)  # pylint: disable=no-member
+            spi.write(data if raw else bytearray([data]))  # pylint: disable=no-member
 
     def read_reg(self, cmd):
         """Select a Register and read a byte"""
@@ -187,16 +187,16 @@ class RA8875_Device(object):
         """Read the status at the current memory location"""
         cmd = bytearray(1)
         with self.spi_device as spi:
-            spi.write(reg.CMDRD)
-            spi.readinto(cmd)
+            spi.write(reg.CMDRD)  # pylint: disable=no-member
+            spi.readinto(cmd)  # pylint: disable=no-member
             return struct.unpack(">B", cmd)[0]
 
     def read_data(self):
         """Read a byte at the current memory location"""
         data = bytearray(1)
         with self.spi_device as spi:
-            spi.write(reg.DATRD)
-            spi.readinto(data)
+            spi.write(reg.DATRD)  # pylint: disable=no-member
+            spi.readinto(data)  # pylint: disable=no-member
             return struct.unpack(">B", data)[0]
 
     def wait_poll(self, register, mask):
@@ -409,11 +409,6 @@ class RA8875Display(RA8875_Device):
         self.write_reg(reg.VEAW0, (y + height) & 0xFF)
         self.write_reg(reg.VEAW0 + 1, (y + height) >> 8)
     #pylint: enable-msg=invalid-name,too-many-arguments
-
-    @staticmethod
-    def _encode_pixel(color):
-        """Encode a pixel that is compatible with this display"""
-        return struct.pack(">H", color)
 
 class RA8875(RA8875Display):
     """Set Initial Variables"""

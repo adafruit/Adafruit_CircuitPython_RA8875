@@ -4,5 +4,9 @@
 .. If your library file(s) are nested in a directory (e.g. /adafruit_foo/foo.py)
 .. use this format as the module name: "adafruit_foo.foo"
 
-.. automodule:: adafruit_ra8875
+.. automodule:: adafruit_ra8875.ra8875
    :members:
+
+.. automodule:: adafruit_ra8875.registers
+   :members:
+
