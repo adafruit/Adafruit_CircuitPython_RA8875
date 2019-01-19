@@ -1,11 +1,10 @@
 # Quick test of RA8875 with Feather M4
 import time
-import random
 import busio
 import digitalio
 import board
+
 import adafruit_ra8875.ra8875 as ra8875
-import adafruit_ra8875.registers as reg
 from adafruit_ra8875.ra8875 import color565
 
 BLACK = color565(0, 0, 0)
@@ -21,9 +20,8 @@ WHITE = color565(255, 255, 255)
 cs_pin = digitalio.DigitalInOut(board.D9)
 rst_pin = digitalio.DigitalInOut(board.D10)
 int_pin = digitalio.DigitalInOut(board.D11)
-int_pin.switch_to_input()
 
-# Config for display baudrate (default max is 6mhz):
+# Config for display baudrate (default max is 4mhz):
 BAUDRATE = 6000000
 
 # Setup SPI bus using hardware SPI:
@@ -60,8 +58,6 @@ display.ellipse(300, 100, 100, 40, RED)
 display.fill_ellipse(300, 100, 98, 38, BLUE)
 display.curve(50, 100, 80, 40, 2, BLACK)
 display.fill_curve(50, 100, 78, 38, 2, WHITE)
-display.fill_circle(int(display.width / 2) - 1, int(display.height / 2) - 1, 200, color565(255, 0, 0)) # 400 pixel circle centered
-display.line(0, 0, display.width - 1, display.height - 1, color565(0, 0, 255))
 
 display.txt_set_cursor(240, 240)
 display.txt_trans(WHITE)
@@ -69,14 +65,18 @@ display.txt_size(2)
 testvar = 99
 display.txt_write("Player Score: " + str(testvar))
 
+display.touch_init(int_pin)
 display.touch_enable(True)
 
 x_scale = 1024 / display.width
 y_scale = 1024 / display.height
-last_coords = [None, None]
+
 # Main loop:
 while True:
-    if not int_pin.value:
-        if display.touched():
-            coords = display.touch_read()
-            display.fill_circle(int(coords[0]/x_scale), int(coords[1]/y_scale), 4, MAGENTA)
+    if display.touched():
+        coords = display.touch_read()
+        display.fill_circle(int(coords[0]/x_scale), int(coords[1]/y_scale), 4, MAGENTA)
+        display.txt_color(WHITE, BLACK)
+        display.txt_set_cursor(240, 240)
+        display.txt_size(2)
+        display.txt_write("Position (" + str(int(coords[0]/x_scale)) + ", " + str(int(coords[1]/y_scale)) + ")")
