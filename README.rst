@@ -33,7 +33,8 @@ This is easily achieved by downloading
 Usage Example
 =============
 
-.. todo:: Add a quick, simple example. It and other examples should live in the examples folder and be included in docs/examples.rst.
+See examples/ra8875_simpletest.py and examples/ra8875_bmptest.py for examples of the module's usage. When 
+running the bmptest, be sure to upload the blinka.bmp image to the root folder as well.
 
 Contributing
 ============
