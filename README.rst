@@ -13,7 +13,11 @@ Introduction
     :target: https://travis-ci.com/melissagirl/Adafruit_CircuitPython_RA8875
     :alt: Build Status
 
-.. todo:: Describe what the library does.
+This is a full featured CircuitPython Library for the RA8875 that included all of the hardware
+accelerated drawing functions as the original Arduino library. A lot of the functionality has
+been streamlined with a focus on ease of use that is still flexible enough to make full use of
+the hardware. For instace, Graphics and Text mode switching is now automatic and handled in the
+background.
 
 Dependencies
 =============
