@@ -410,6 +410,11 @@ class RA8875Display(RA8875_Device):
         self.write_reg(reg.VEAW0 + 1, (y + height) >> 8)
     #pylint: enable-msg=invalid-name,too-many-arguments
 
+    @staticmethod
+    def _encode_pixel(color):
+        """Encode a pixel that is compatible with this display"""
+        return struct.pack(">H", color)
+
 class RA8875(RA8875Display):
     """Set Initial Variables"""
     #pylint: disable-msg=invalid-name,too-many-arguments
