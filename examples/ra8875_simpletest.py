@@ -79,4 +79,5 @@ while True:
         display.txt_color(WHITE, BLACK)
         display.txt_set_cursor(240, 240)
         display.txt_size(2)
-        display.txt_write("Position (" + str(int(coords[0]/x_scale)) + ", " + str(int(coords[1]/y_scale)) + ")")
+        display.txt_write("Position (" + str(int(coords[0]/x_scale)) + ", " +
+                          str(int(coords[1]/y_scale)) + ")")

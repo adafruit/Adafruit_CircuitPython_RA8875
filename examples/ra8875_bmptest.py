@@ -28,7 +28,7 @@ class BMP:
     def __init__(self, filename):
         self.filename = filename
         self.colors = 0
-    
+
     def read_header(self):
         if self.colors:
             return
@@ -45,16 +45,16 @@ class BMP:
             f.seek(46)
             self.colors = int.from_bytes(f.read(4), 'little')
 
-def draw(self, display, x=0, y=0):
-    self.read_header()
-    print("{:d}x{:d} image".format(self.width, self.height))
-    print("{:d}-bit encoding detected".format(self.bpp))
-    line = 0;
+    def draw(self, display, x=0, y=0):
+        self.read_header()
+        print("{:d}x{:d} image".format(self.width, self.height))
+        print("{:d}-bit encoding detected".format(self.bpp))
+        line = 0;
         line_size = self.width * (self.bpp//8)
         mod4 = line_size % 4
         if mod4 !=0:
             line_size += (4-mod4)
-    self.bmp_data = b''
+        self.bmp_data = b''
         self.current_line_data = b''
         with open(self.filename, 'rb') as f:
             f.seek(self.data)
