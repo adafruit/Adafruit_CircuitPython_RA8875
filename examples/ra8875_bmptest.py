@@ -71,15 +71,11 @@ class BMP(object):
                 for i in range(0, line_size, self.bpp//8):
                     if (line_size-i) < self.bpp//8:
                         break
-                    b1 = line_data[i]
-                    b2 = line_data[i+1]
                     if self.bpp == 16:
-                        color = b1 << 8 | b2
+                        color = line_data[i] << 8 | line_data[i+1]
                     if self.bpp == 24:
-                        b3 = line_data[i+2]
-                        color = color565(b1, b2, b3)
-                    c = struct.pack(">H", color)
-                    current_line_data = current_line_data + c
+                        color = color565(line_data[i], line_data[i+1], line_data[i+2])
+                    current_line_data = current_line_data + struct.pack(">H", color)
                 disp.setxy(x, self.height - line + y)
                 disp.push_pixels(current_line_data)
             disp.set_window(0, 0, disp.width, disp.height)

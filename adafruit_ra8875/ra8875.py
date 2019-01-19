@@ -32,8 +32,8 @@ Implementation Notes
 
 **Hardware:**
 
-* `RA8875 Driver Board for 40-pin TFT Touch Displays - 800x480
-<https://www.adafruit.com/product/1590>`_
+* RA8875 Driver Board for 40-pin TFT Touch Displays - 800x480:
+  https://www.adafruit.com/product/1590
 
 **Software and Dependencies:**
 
@@ -41,7 +41,6 @@ Implementation Notes
   https://github.com/adafruit/circuitpython/releases
 * Adafruit's Bus Device library:
   https://github.com/adafruit/Adafruit_CircuitPython_BusDevice
-# * Adafruit's Register library: https://github.com/adafruit/Adafruit_CircuitPython_Register
 """
 
 # imports
