@@ -168,7 +168,7 @@ class RA8875_Device(object):
         self.turn_on(start_on)
         self._gpiox(True)
         self._pwm1_config(True, reg.PWM_CLK_DIV1024)
-        self._pwm1_out(255)
+        self.brightness(255)
 
     def pllinit(self):
         """Init the Controller PLL"""
@@ -286,11 +286,7 @@ class RA8875_Device(object):
         self.write_reg(reg.PWRR, reg.PWRR_DISPOFF if sleep else (reg.PWRR_DISPOFF | reg.PWRR_SLEEP))
 
     def _gpiox(self, gpio_on):
-        """
-        Enable or Disable the RA8875 GPIOs
-
-        :param bool gpio_on: Should we enable the GPIOs
-        """
+        """Enable or Disable the RA8875 GPIOs"""
         self.write_reg(reg.GPIOX, 1 if gpio_on else 0)
 
     def _pwm1_config(self, pwm_on, clock):
@@ -302,7 +298,7 @@ class RA8875_Device(object):
         """
         self.write_reg(reg.P1CR, (reg.P1CR_ENABLE if pwm_on else reg.P1CR_DISABLE) | (clock & 0xF))
 
-    def _pwm1_out(self, level):
+    def brightness(self, level):
         """
         Configure the backlight brightness (0-255)
 
@@ -389,20 +385,19 @@ class RA8875Display(RA8875_Device):
     """
     Drawing Class for the Display. Contains all the basic drawing functionality as well
     as the text functions. Valid display sizes are currently 800x480 and 480x272.
+
+    :param SPI spi: The spi peripheral to use
+    :param DigitalInOut cs: The chip-select pin to use (sometimes labeled "SS")
+    :param DigitalInOut rst: (optional) The reset pin if it exists (default=None)
+    :param int width: (optional) The width of the display in pixels (default=800)
+    :param int height: (optional) The height of the display in pixels (default=480)
+    :param int baudrate: (optional) The spi speed (default=6000000)
+    :param int phase: (optional) The spi phase (default=0)
+    :param int polarity: (optional) The spi polarity (default=0)
     """
     #pylint: disable-msg=invalid-name,too-many-arguments
     def __init__(self, spi, cs, rst=None, width=800, height=480,
                  baudrate=6000000, polarity=0, phase=0):
-        """
-        :param SPI spi: The spi peripheral to use
-        :param DigitalInOut cs: The chip-select pin to use (sometimes labeled "SS")
-        :param DigitalInOut rst: (optional) The reset pin if it exists (default=None)
-        :param int width: (optional) The width of the display in pixels (default=800)
-        :param int height: (optional) The height of the display in pixels (default=480)
-        :param int baudrate: (optional) The spi speed (default=6000000)
-        :param int phase: (optional) The spi phase (default=0)
-        :param int polarity: (optional) The spi polarity (default=0)
-        """
         self._txt_scale = 0
         super(RA8875Display, self).__init__(spi, cs, rst, width, height,
                                             baudrate, polarity, phase)
@@ -787,15 +782,7 @@ class RA8875(RA8875Display):
         self._rect_helper(x, y + radius, x + width, y + height - radius, color, True)
 
     def _circle_helper(self, x, y, radius, color, filled):
-        """
-        General Circle Drawing Function (HW Accelerated)
-
-        :param int x_center: The X coordinate of the center of the circle
-        :param int y_center: The Y coordinate of the center of the circle
-        :param int radius: The radius of the circle
-        :param int color: The color of the circle
-        :param bool filled: If the shape is filled
-        """
+        """General Circle Drawing Helper"""
         self._gfx_mode()
 
         # Set X, Y, and Radius
@@ -812,16 +799,7 @@ class RA8875(RA8875Display):
         self.wait_poll(reg.DCR, reg.DCR_CIRC_STATUS)
 
     def _rect_helper(self, x, y, width, height, color, filled):
-        """
-        General Rectangle Drawing Function (HW Accelerated)
-
-        :param int x: The X coordinate of the left side of the rectangle
-        :param int y: The Y coordinate of the top side of the rectangle
-        :param int width: The width of the rectangle
-        :param int height: The height of the rectangle
-        :param int color: The color of the rectangle
-        :param bool filled: If the shape is filled
-        """
+        """General Rectangle Drawing Helper"""
         self._gfx_mode()
 
         # Set X and Y
@@ -843,18 +821,7 @@ class RA8875(RA8875Display):
         self.wait_poll(reg.DCR, reg.DCR_LNSQTR_STATUS)
 
     def _triangle_helper(self, x1, y1, x2, y2, x3, y3, color, filled):
-        """
-        General Triangle Drawing Function (HW Accelerated)
-
-        :param int x1: The X coordinate of the first point of the triangle
-        :param int y1: The Y coordinate of the first point of the triangle
-        :param int x2: The X coordinate of the second point of the triangle
-        :param int y2: The Y coordinate of the second point of the triangle
-        :param int x3: The X coordinate of the third point of the triangle
-        :param int y3: The Y coordinate of the third point of the triangle
-        :param int color: The color of the triangle
-        :param bool filled: If the shape is filled
-        """
+        """General Triangle Drawing Helper"""
         self._gfx_mode()
 
         # Set Point Coordinates
@@ -878,18 +845,7 @@ class RA8875(RA8875Display):
         self.wait_poll(reg.DCR, reg.DCR_LNSQTR_STATUS)
 
     def _curve_helper(self, x_center, y_center, h_axis, v_axis, curve_part, color, filled):
-        """
-        General Curve Drawing Function (HW Accelerated)
-        This is basically a quarter of an ellipse.
-
-        :param int x_center: The X coordinate of the focal point of the curve
-        :param int y_center: The Y coordinate of the focal point of the curve
-        :param int h_axis: The length of the horizontal axis of the full ellipse
-        :param int v_axis: The length of the vertical axis of the full ellipse
-        :param byte curve_part: A number between 0-3 specifying the quarter section
-        :param int color: The color of the curve
-        :param bool filled: If the shape is filled
-        """
+        """General Curve Drawing Helper"""
         self._gfx_mode()
 
         # Set X and Y Center
@@ -911,16 +867,7 @@ class RA8875(RA8875Display):
         self.wait_poll(reg.ELLIPSE, reg.ELLIPSE_STATUS)
 
     def _ellipse_helper(self, x_center, y_center, h_axis, v_axis, color, filled):
-        """
-        General Ellipse Drawing Function (HW Accelerated)
-
-        :param int x_center: The X coordinate of the center of the ellipse
-        :param int y_center: The Y coordinate of the center of the ellipse
-        :param int h_axis: The length of the horizontal axis
-        :param int v_axis: The length of the vertical axis
-        :param int color: The color of the ellipse
-        :param bool filled: If the shape is filled
-        """
+        """General Ellipse Drawing Helper"""
         self._gfx_mode()
 
         # Set X and Y  Center
