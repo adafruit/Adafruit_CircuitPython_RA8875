@@ -9,8 +9,8 @@ Introduction
     :target: https://discord.gg/nBQh6qu
     :alt: Discord
 
-.. image:: https://travis-ci.com/melissagirl/Adafruit_CircuitPython_RA8875.svg?branch=master
-    :target: https://travis-ci.com/melissagirl/Adafruit_CircuitPython_RA8875
+.. image:: https://travis-ci.com/adafruit/Adafruit_CircuitPython_RA8875.svg?branch=master
+    :target: https://travis-ci.com/adafruit/Adafruit_CircuitPython_RA8875
     :alt: Build Status
 
 This is a full featured CircuitPython Library for the RA8875 that included all of the hardware
@@ -40,7 +40,7 @@ Contributing
 ============
 
 Contributions are welcome! Please read our `Code of Conduct
-<https://github.com/melissagirl/Adafruit_CircuitPython_RA8875/blob/master/CODE_OF_CONDUCT.md>`_
+<https://github.com/adafruit/Adafruit_CircuitPython_RA8875/blob/master/CODE_OF_CONDUCT.md>`_
 before contributing to help this project stay welcoming.
 
 Building locally
