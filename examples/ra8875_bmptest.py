@@ -80,4 +80,4 @@ class BMP(object):
                 disp.push_pixels(current_line_data)
             disp.set_window(0, 0, disp.width, disp.height)
 
-BMP("/blinka.bmp").draw(display, 287, 127)
+BMP("/ra8875_blinka.bmp").draw(display, 287, 127)
