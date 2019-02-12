@@ -52,9 +52,9 @@ setup(
     ],
 
     # What does your project relate to?
-    keywords='adafruit ra8875 driver hardware micropython circuitpython',
+    keywords='adafruit ra8875 display driver tft touch screen hardware micropython circuitpython',
 
     # You can just specify the packages manually here if your project is
     # simple. Or you can use find_packages().
-    py_modules=['adafruit_ra8875'],
+    packages=['adafruit_ra8875'],
 )
