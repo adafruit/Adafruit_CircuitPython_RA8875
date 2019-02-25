@@ -27,7 +27,7 @@ display = ra8875.RA8875(spi, cs=cs_pin, rst=rst_pin, baudrate=BAUDRATE)
 display.init()
 display.fill(WHITE)
 
-def color555(self, rgb):
+def color555(rgb):
     return (rgb & 0x001F) << 11 | (rgb & 0x0700) | (rgb & 0x0060) << 1 | 0x20 | (rgb & 0xF800) >> 11
 
 class BMP(object):
