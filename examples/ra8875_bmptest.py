@@ -35,7 +35,8 @@ class BMP(object):
         self.data_size = 0
         self.bpp = 0
         self.width = 0
-        self.height=0
+        self.height = 0
+        self.read_header()
 
     def read_header(self):
         if self.colors:
@@ -54,7 +55,6 @@ class BMP(object):
             self.colors = int.from_bytes(f.read(4), 'little')
 
     def draw(self, disp, x=0, y=0):
-        self.read_header()
         print("{:d}x{:d} image".format(self.width, self.height))
         print("{:d}-bit encoding detected".format(self.bpp))
         line = 0
@@ -80,4 +80,10 @@ class BMP(object):
                 disp.push_pixels(current_line_data)
             disp.set_window(0, 0, disp.width, disp.height)
 
-BMP("/ra8875_blinka.bmp").draw(display, 287, 127)
+bitmap = BMP("/ra8875_blinka.bmp")
+print(display.width)
+print(display.height)
+print(bitmap.width)
+print(bitmap.height)
+bitmap.draw(display, (display.width // 2) - (bitmap.width // 2),
+            (display.height // 2) - (bitmap.height // 2))
