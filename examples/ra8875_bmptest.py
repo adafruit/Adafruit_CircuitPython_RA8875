@@ -53,6 +53,8 @@ class BMP(object):
             self.data_size = int.from_bytes(f.read(4), 'little')
             f.seek(46)
             self.colors = int.from_bytes(f.read(4), 'little')
+    def color555(self, rgb):
+        return (rgb & 0x001F) << 11 | (rgb & 0x0700) | (rgb & 0x0060) << 1 | 0x20 | (rgb & 0xF800) >> 11
 
     def draw(self, disp, x=0, y=0):
         print("{:d}x{:d} image".format(self.width, self.height))
@@ -72,7 +74,7 @@ class BMP(object):
                     if (line_size-i) < self.bpp//8:
                         break
                     if self.bpp == 16:
-                        color = line_data[i] << 8 | line_data[i+1]
+                        color = self.color555(line_data[i] << 8 | line_data[i+1])
                     if self.bpp == 24:
                         color = color565(line_data[i+2], line_data[i+1], line_data[i])
                     current_line_data = current_line_data + struct.pack(">H", color)
@@ -81,9 +83,4 @@ class BMP(object):
             disp.set_window(0, 0, disp.width, disp.height)
 
 bitmap = BMP("/ra8875_blinka.bmp")
-print(display.width)
-print(display.height)
-print(bitmap.width)
-print(bitmap.height)
-bitmap.draw(display, (display.width // 2) - (bitmap.width // 2),
-            (display.height // 2) - (bitmap.height // 2))
+bitmap.draw(display, (display.width // 2) - (bitmap.width // 2), (display.height // 2) - (bitmap.height // 2))
