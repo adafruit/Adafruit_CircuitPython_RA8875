@@ -76,7 +76,7 @@ class BMP(object):
                         break
                     if self.bpp == 16:
                         color = color555(line_data[i] | line_data[i+1] << 8)
-                    if self.bpp == 24:
+                    if self.bpp == 24 or self.bpp == 32:
                         color = color565(line_data[i+2], line_data[i+1], line_data[i])
                     current_line_data = current_line_data + struct.pack(">H", color)
                 disp.setxy(x, self.height - line + y)
