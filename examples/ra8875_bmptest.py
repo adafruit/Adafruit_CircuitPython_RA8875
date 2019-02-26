@@ -28,7 +28,7 @@ display.init()
 display.fill(WHITE)
 
 def color555(rgb):
-    return (rgb & 0x7C00) << 1 | (rgb & 0x03E0) << 1 | 0x20 | rgb & 0x001F
+    return (rgb & 0x7FE0) << 1 | 0x20 | rgb & 0x001F
 
 class BMP(object):
     def __init__(self, filename):
