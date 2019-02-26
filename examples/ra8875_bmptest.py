@@ -28,7 +28,7 @@ display.init()
 display.fill(WHITE)
 
 def color555(rgb):
-    return (rgb & 0x001F) << 11 | (rgb & 0x0700) | (rgb & 0x0060) << 1 | 0x20 | (rgb & 0xF800) >> 11
+    return (rgb & 0x7C00) << 1 | (rgb & 0x03E0) << 1 | 0x20 | rgb & 0x001F
 
 class BMP(object):
     def __init__(self, filename):
@@ -75,7 +75,7 @@ class BMP(object):
                     if (line_size-i) < self.bpp//8:
                         break
                     if self.bpp == 16:
-                        color = color555(line_data[i] << 8 | line_data[i+1])
+                        color = color555(line_data[i] | line_data[i+1] << 8)
                     if self.bpp == 24:
                         color = color565(line_data[i+2], line_data[i+1], line_data[i])
                     current_line_data = current_line_data + struct.pack(">H", color)
