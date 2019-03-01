@@ -27,7 +27,7 @@ display = ra8875.RA8875(spi, cs=cs_pin, rst=rst_pin, baudrate=BAUDRATE)
 display.init()
 display.fill(WHITE)
 
-def color555(rgb):
+def convert_555_to_565(rgb):
     return (rgb & 0x7FE0) << 1 | 0x20 | rgb & 0x001F
 
 class BMP(object):
@@ -75,7 +75,7 @@ class BMP(object):
                     if (line_size-i) < self.bpp//8:
                         break
                     if self.bpp == 16:
-                        color = color555(line_data[i] | line_data[i+1] << 8)
+                        color = convert_555_to_565(line_data[i] | line_data[i+1] << 8)
                     if self.bpp == 24 or self.bpp == 32:
                         color = color565(line_data[i+2], line_data[i+1], line_data[i])
                     current_line_data = current_line_data + struct.pack(">H", color)
