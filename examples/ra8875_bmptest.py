@@ -27,6 +27,9 @@ display = ra8875.RA8875(spi, cs=cs_pin, rst=rst_pin, baudrate=BAUDRATE)
 display.init()
 display.fill(WHITE)
 
+def convert_555_to_565(rgb):
+    return (rgb & 0x7FE0) << 1 | 0x20 | rgb & 0x001F
+
 class BMP(object):
     def __init__(self, filename):
         self.filename = filename
@@ -35,7 +38,8 @@ class BMP(object):
         self.data_size = 0
         self.bpp = 0
         self.width = 0
-        self.height=0
+        self.height = 0
+        self.read_header()
 
     def read_header(self):
         if self.colors:
@@ -54,7 +58,6 @@ class BMP(object):
             self.colors = int.from_bytes(f.read(4), 'little')
 
     def draw(self, disp, x=0, y=0):
-        self.read_header()
         print("{:d}x{:d} image".format(self.width, self.height))
         print("{:d}-bit encoding detected".format(self.bpp))
         line = 0
@@ -72,12 +75,15 @@ class BMP(object):
                     if (line_size-i) < self.bpp//8:
                         break
                     if self.bpp == 16:
-                        color = line_data[i] << 8 | line_data[i+1]
-                    if self.bpp == 24:
-                        color = color565(line_data[i], line_data[i+1], line_data[i+2])
+                        color = convert_555_to_565(line_data[i] | line_data[i+1] << 8)
+                    if self.bpp == 24 or self.bpp == 32:
+                        color = color565(line_data[i+2], line_data[i+1], line_data[i])
                     current_line_data = current_line_data + struct.pack(">H", color)
                 disp.setxy(x, self.height - line + y)
                 disp.push_pixels(current_line_data)
             disp.set_window(0, 0, disp.width, disp.height)
 
-BMP("/ra8875_blinka.bmp").draw(display, 287, 127)
+bitmap = BMP("/ra8875_blinka.bmp")
+x_position = (display.width // 2) - (bitmap.width // 2)
+y_position = (display.height // 2) - (bitmap.height // 2)
+bitmap.draw(display, x_position, y_position)

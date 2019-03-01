@@ -59,7 +59,9 @@ display.fill_ellipse(300, 100, 98, 38, BLUE)
 display.curve(50, 100, 80, 40, 2, BLACK)
 display.fill_curve(50, 100, 78, 38, 2, WHITE)
 
-display.txt_set_cursor(240, 240)
+display.txt_set_cursor(display.width // 2 - 200, display.height // 2 - 20)
+print(display.width)
+print(display.height)
 display.txt_trans(WHITE)
 display.txt_size(2)
 testvar = 99
@@ -77,7 +79,7 @@ while True:
         coords = display.touch_read()
         display.fill_circle(int(coords[0]/x_scale), int(coords[1]/y_scale), 4, MAGENTA)
         display.txt_color(WHITE, BLACK)
-        display.txt_set_cursor(240, 240)
+        display.txt_set_cursor(display.width // 2 - 220, display.height // 2 - 20)
         display.txt_size(2)
         display.txt_write("Position (" + str(int(coords[0]/x_scale)) + ", " +
                           str(int(coords[1]/y_scale)) + ")")
