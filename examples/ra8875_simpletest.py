@@ -60,8 +60,6 @@ display.curve(50, 100, 80, 40, 2, BLACK)
 display.fill_curve(50, 100, 78, 38, 2, WHITE)
 
 display.txt_set_cursor(display.width // 2 - 200, display.height // 2 - 20)
-print(display.width)
-print(display.height)
 display.txt_trans(WHITE)
 display.txt_size(2)
 testvar = 99
