@@ -114,7 +114,7 @@ class RA8875_Device(object):
             vsync_nondisp = 32
             vsync_start = 23
             vsync_pw = 2
-        elif self.width == 480 and self.height == 272:
+        elif self.width == 480 and (self.height == 272 or self.height == 128):
             pixclk = reg.PCSR_PDATL | reg.PCSR_4CLK
             hsync_nondisp = 10
             hsync_start = 8
