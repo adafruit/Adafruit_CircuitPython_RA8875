@@ -67,7 +67,7 @@ def color565(r, g=0, b=0):
     return (r & 0xf8) << 8 | (g & 0xfc) << 3 | b >> 3
 #pylint: enable-msg=invalid-name
 
-class RA8875_Device(object):
+class RA8875_Device():
     """
     Base Class for the Display. Contains all the low level stuff. As well
     as the touch functions. Valid display sizes are currently 800x480 and 480x272.
@@ -276,7 +276,7 @@ class RA8875_Device(object):
         :param bool start_on: If the display should turn on or off
         """
         self._write_reg(reg.PWRR, reg.PWRR_NORMAL |
-                       (reg.PWRR_DISPON if display_on else reg.PWRR_DISPOFF))
+                        (reg.PWRR_DISPON if display_on else reg.PWRR_DISPOFF))
 
     def reset(self):
         """Perform a hard reset"""
@@ -297,7 +297,8 @@ class RA8875_Device(object):
 
         :param bool sleep: Should we enable sleep mode
         """
-        self._write_reg(reg.PWRR, reg.PWRR_DISPOFF if sleep else (reg.PWRR_DISPOFF | reg.PWRR_SLEEP))
+        self._write_reg(reg.PWRR,
+                        reg.PWRR_DISPOFF if sleep else (reg.PWRR_DISPOFF | reg.PWRR_SLEEP))
 
     def _gpiox(self, gpio_on):
         """Enable or Disable the RA8875 GPIOs"""
@@ -341,7 +342,7 @@ class RA8875_Device(object):
         """
         if touch_on:
             self._write_reg(reg.TPCR0, reg.TPCR0_ENABLE | reg.TPCR0_WAIT_4096CLK |
-                           reg.TPCR0_WAKEENABLE | self._adc_clk)
+                            reg.TPCR0_WAKEENABLE | self._adc_clk)
             self._write_reg(reg.TPCR1, reg.TPCR1_AUTO | reg.TPCR1_DEBOUNCE)
             self._write_data(self._read_reg(reg.INTC1) | reg.INTC1_TP)
         else:
@@ -360,7 +361,7 @@ class RA8875_Device(object):
             self._gfx_mode() # Hack that seems to work
             if self._tpin.value:
                 return False
-        istouched = True if self._read_reg(reg.INTC2) & reg.INTC2_TP else False
+        istouched = self._read_reg(reg.INTC2) & reg.INTC2_TP
         return istouched
 
     def touch_read(self):
