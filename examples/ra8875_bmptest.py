@@ -17,7 +17,7 @@ cs_pin = digitalio.DigitalInOut(board.D9)
 rst_pin = digitalio.DigitalInOut(board.D10)
 
 # Config for display baudrate (default max is 6mhz):
-BAUDRATE = 6000000
+BAUDRATE = 8000000
 
 # Setup SPI bus using hardware SPI:
 spi = busio.SPI(clock=board.SCK, MOSI=board.MOSI, MISO=board.MISO)
