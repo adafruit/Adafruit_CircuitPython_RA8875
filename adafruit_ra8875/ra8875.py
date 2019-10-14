@@ -222,6 +222,8 @@ class RA8875_Device():
         """
         with self.spi_device as spi:
             spi.write(reg.DATWR)  # pylint: disable=no-member
+            if raw and isinstance(data, str):
+                data = bytes(data, 'utf8')
             spi.write(data if raw else bytearray([data & 0xFF]))  # pylint: disable=no-member
 
     def _read_reg(self, cmd):
