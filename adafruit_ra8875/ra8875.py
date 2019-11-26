@@ -573,7 +573,7 @@ class RA8875(RA8875Display):
         :param int height: The height of the rectangle
         :param int color: The color of the rectangle
         """
-        self._rect_helper(x, y, width, height, color, False)
+        self._rect_helper(x, y, x + width - 1, y + height - 1, color, False)
 
     def fill_rect(self, x, y, width, height, color):
         """
@@ -585,7 +585,7 @@ class RA8875(RA8875Display):
         :param int height: The height of the rectangle
         :param int color: The color of the rectangle
         """
-        self._rect_helper(x, y, width, height, color, True)
+        self._rect_helper(x, y, x + width - 1, y + height - 1, color, True)
 
     def fill(self, color):
         """
@@ -593,7 +593,7 @@ class RA8875(RA8875Display):
 
         :param int color: The color to Fill the screen
         """
-        self._rect_helper(0, 0, self.width, self.height, color, True)
+        self._rect_helper(0, 0, self.width - 1, self.height - 1, color, True)
 
     def circle(self, x_center, y_center, radius, color):
         """
@@ -706,7 +706,7 @@ class RA8875(RA8875Display):
         :param int width: The width of the line
         :param int color: The color of the line
         """
-        self.line(x, y, x + width, y, color)
+        self.line(x, y, x + width - 1, y, color)
 
     def vline(self, x, y, height, color):
         """
@@ -717,7 +717,7 @@ class RA8875(RA8875Display):
         :param int height: The height of the line
         :param int color: The color of the line
         """
-        self.line(x, y, x, y + height, color)
+        self.line(x, y, x, y + height - 1, color)
 
     def line(self, x1, y1, x2, y2, color):
         """
@@ -758,13 +758,13 @@ class RA8875(RA8875Display):
         """
         self._gfx_mode()
         self._curve_helper(x + radius, y + radius, radius, radius, 1, color, False)
-        self._curve_helper(x + width - radius, y + radius, radius, radius, 2, color, False)
+        self._curve_helper(x + width - radius - 1, y + radius, radius, radius, 2, color, False)
         self._curve_helper(x + radius, y + height - radius, radius, radius, 0, color, False)
-        self._curve_helper(x + width - radius, y + height - radius, radius, radius, 3, color, False)
-        self.hline(x + radius, y, width - (radius * 2), color)
-        self.hline(x + radius, y + height, width - (radius * 2), color)
+        self._curve_helper(x + width - radius - 1, y + height - radius, radius, radius, 3, color, False)
+        self.hline(x + radius, y, width - (radius * 2) - 1, color)
+        self.hline(x + radius, y + height, width - (radius * 2) - 1, color)
         self.vline(x, y + radius, height - (radius * 2), color)
-        self.vline(x + width, y + radius, height - (radius * 2), color)
+        self.vline(x + width - 1, y + radius, height - (radius * 2), color)
 
     def fill_round_rect(self, x, y, width, height, radius, color):
         """
@@ -779,11 +779,11 @@ class RA8875(RA8875Display):
         """
         self._gfx_mode()
         self._curve_helper(x + radius, y + radius, radius, radius, 1, color, True)
-        self._curve_helper(x + width - radius, y + radius, radius, radius, 2, color, True)
+        self._curve_helper(x + width - radius - 1, y + radius, radius, radius, 2, color, True)
         self._curve_helper(x + radius, y + height - radius, radius, radius, 0, color, True)
-        self._curve_helper(x + width - radius, y + height - radius, radius, radius, 3, color, True)
-        self._rect_helper(x + radius, y, x + width - radius, y + height, color, True)
-        self._rect_helper(x, y + radius, x + width, y + height - radius, color, True)
+        self._curve_helper(x + width - radius - 1, y + height - radius, radius, radius, 3, color, True)
+        self._rect_helper(x + radius, y, x + width - radius - 1, y + height - 1, color, True)
+        self._rect_helper(x, y + radius, x + width - 1, y + height - radius - 1, color, True)
 
     def _circle_helper(self, x, y, radius, color, filled):
         """General Circle Drawing Helper"""
@@ -800,17 +800,17 @@ class RA8875(RA8875Display):
         self._write_reg(reg.DCR, reg.DCR_CIRC_START | (reg.DCR_FILL if filled else reg.DCR_NOFILL))
         self._wait_poll(reg.DCR, reg.DCR_CIRC_STATUS)
 
-    def _rect_helper(self, x, y, width, height, color, filled):
+    def _rect_helper(self, x1, y1, x2, y2, color, filled):
         """General Rectangle Drawing Helper"""
         self._gfx_mode()
 
         # Set X and Y
-        self._write_reg16(0x91, x)
-        self._write_reg16(0x93, y + self.vert_offset)
+        self._write_reg16(0x91, x1)
+        self._write_reg16(0x93, y1 + self.vert_offset)
 
         # Set Width and Height
-        self._write_reg16(0x95, width)
-        self._write_reg16(0x97, height + self.vert_offset)
+        self._write_reg16(0x95, x2)
+        self._write_reg16(0x97, y2 + self.vert_offset)
 
         self.set_color(color)
 
