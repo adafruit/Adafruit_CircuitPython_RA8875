@@ -760,7 +760,8 @@ class RA8875(RA8875Display):
         self._curve_helper(x + radius, y + radius, radius, radius, 1, color, False)
         self._curve_helper(x + width - radius - 1, y + radius, radius, radius, 2, color, False)
         self._curve_helper(x + radius, y + height - radius, radius, radius, 0, color, False)
-        self._curve_helper(x + width - radius - 1, y + height - radius, radius, radius, 3, color, False)
+        self._curve_helper(x + width - radius - 1, y + height - radius, radius, radius, 3, color,
+                           False)
         self.hline(x + radius, y, width - (radius * 2) - 1, color)
         self.hline(x + radius, y + height, width - (radius * 2) - 1, color)
         self.vline(x, y + radius, height - (radius * 2), color)
@@ -781,7 +782,8 @@ class RA8875(RA8875Display):
         self._curve_helper(x + radius, y + radius, radius, radius, 1, color, True)
         self._curve_helper(x + width - radius - 1, y + radius, radius, radius, 2, color, True)
         self._curve_helper(x + radius, y + height - radius, radius, radius, 0, color, True)
-        self._curve_helper(x + width - radius - 1, y + height - radius, radius, radius, 3, color, True)
+        self._curve_helper(x + width - radius - 1, y + height - radius, radius, radius, 3, color,
+                           True)
         self._rect_helper(x + radius, y, x + width - radius - 1, y + height - 1, color, True)
         self._rect_helper(x, y + radius, x + width - 1, y + height - radius - 1, color, True)
 
