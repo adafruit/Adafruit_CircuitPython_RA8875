@@ -459,7 +459,7 @@ class RA8875Display(RA8875_Device):
             spi, cs, rst, width, height, baudrate, polarity, phase
         )
 
-    # pylint: too-many-arguments
+    # pylint: disable=too-many-arguments
 
     def txt_set_cursor(self, x, y):
         """
