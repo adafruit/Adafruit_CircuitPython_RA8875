@@ -39,13 +39,13 @@ PyPI <https://pypi.org/project/adafruit-circuitpython-ra8875/>`_. To install for
 .. code-block:: shell
 
     pip3 install adafruit-circuitpython-ra8875
-    
+
 To install system-wide (this may be required in some cases):
 
 .. code-block:: shell
 
     sudo pip3 install adafruit-circuitpython-ra8875
-    
+
 To install in a virtual environment in your current project:
 
 .. code-block:: shell
@@ -54,11 +54,11 @@ To install in a virtual environment in your current project:
     python3 -m venv .env
     source .env/bin/activate
     pip3 install adafruit-circuitpython-ra8875
-    
+
 Usage Example
 =============
 
-See examples/ra8875_simpletest.py and examples/ra8875_bmptest.py for examples of the module's usage. When 
+See examples/ra8875_simpletest.py and examples/ra8875_bmptest.py for examples of the module's usage. When
 running the bmptest, be sure to upload the blinka.bmp image to the root folder as well.
 
 Contributing

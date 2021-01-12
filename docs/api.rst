@@ -6,4 +6,3 @@
 
 .. automodule:: adafruit_ra8875.ra8875
    :members:
-
