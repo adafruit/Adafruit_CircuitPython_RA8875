@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2021 ladyada for Adafruit Industries
+# SPDX-License-Identifier: MIT
+
 # Quick bitmap test of RA8875 with Feather M4
 import busio
 import digitalio
