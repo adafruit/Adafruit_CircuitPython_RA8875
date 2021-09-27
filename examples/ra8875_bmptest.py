@@ -6,7 +6,7 @@ import busio
 import digitalio
 import board
 
-import adafruit_ra8875.ra8875 as ra8875
+from adafruit_ra8875 import ra8875
 from adafruit_ra8875.ra8875 import color565
 
 try:
@@ -82,7 +82,7 @@ class BMP:
                         break
                     if self.bpp == 16:
                         color = convert_555_to_565(line_data[i] | line_data[i + 1] << 8)
-                    if self.bpp == 24 or self.bpp == 32:
+                    if self.bpp in (24, 32):
                         color = color565(
                             line_data[i + 2], line_data[i + 1], line_data[i]
                         )
