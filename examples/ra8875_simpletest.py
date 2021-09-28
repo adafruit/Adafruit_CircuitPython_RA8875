@@ -7,7 +7,7 @@ import busio
 import digitalio
 import board
 
-import adafruit_ra8875.ra8875 as ra8875
+from adafruit_ra8875 import ra8875
 from adafruit_ra8875.ra8875 import color565
 
 BLACK = color565(0, 0, 0)
