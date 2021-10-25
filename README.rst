@@ -61,6 +61,11 @@ Usage Example
 See examples/ra8875_simpletest.py and examples/ra8875_bmptest.py for examples of the module's usage. When
 running the bmptest, be sure to upload the blinka.bmp image to the root folder as well.
 
+Documentation
+=============
+
+API documentation for this library can be found on `Read the Docs <https://circuitpython.readthedocs.io/projects/ra8875/en/latest/>`_.
+
 Contributing
 ============
 
