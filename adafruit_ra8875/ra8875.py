@@ -29,7 +29,7 @@ Implementation Notes
 # imports
 import time
 from digitalio import Direction
-import adafruit_bus_device.spi_device as spi_device
+from adafruit_bus_device import spi_device
 import adafruit_ra8875.registers as reg
 
 try:
@@ -119,9 +119,7 @@ class RA8875_Device:
             vsync_nondisp = 32
             vsync_start = 23
             vsync_pw = 2
-        elif self.width == 480 and (
-            self.height == 272 or self.height == 128 or self.height == 82
-        ):
+        elif self.width == 480 and self.height in (272, 128, 82):
             pixclk = reg.PCSR_PDATL | reg.PCSR_4CLK
             hsync_nondisp = 10
             hsync_start = 8
@@ -483,8 +481,7 @@ class RA8875Display(RA8875_Device):
         :param byte scale: The the size to scale the Text to
         """
         self._txt_mode()
-        if scale > 3:
-            scale = 3
+        scale = min(scale, 3)
         self._write_data((self._read_reg(reg.FNCR1) & ~(0xF)) | (scale << 2) | scale)
         self._txt_scale = scale
 
