@@ -2,17 +2,14 @@
 # SPDX-License-Identifier: MIT
 
 # Quick bitmap test of RA8875 with Feather M4
+import struct
+
 import busio
 import digitalio
 import board
 
 from adafruit_ra8875 import ra8875
 from adafruit_ra8875.ra8875 import color565
-
-try:
-    import struct
-except ImportError:
-    import ustruct as struct
 
 WHITE = color565(255, 255, 255)
 
