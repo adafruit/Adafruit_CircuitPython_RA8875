@@ -27,15 +27,12 @@ Implementation Notes
 """
 
 # imports
+import struct
 import time
+
 from digitalio import Direction
 from adafruit_bus_device import spi_device
 import adafruit_ra8875.registers as reg
-
-try:
-    import struct
-except ImportError:
-    import ustruct as struct
 
 __version__ = "0.0.0-auto.0"
 __repo__ = "https://github.com/adafruit/Adafruit_CircuitPython_RA8875.git"
