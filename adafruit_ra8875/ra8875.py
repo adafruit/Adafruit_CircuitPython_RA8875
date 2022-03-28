@@ -54,6 +54,15 @@ class RA8875_Device:
     """
     Base Class for the Display. Contains all the low level stuff. As well
     as the touch functions. Valid display sizes are currently 800x480 and 480x272.
+
+    :param SPI spi: The spi peripheral to use
+    :param DigitalInOut cs: The chip-select pin to use (sometimes labeled "SS")
+    :param DigitalInOut rst: (optional) The reset pin if it exists (default=None)
+    :param int width: (optional) The width of the display in pixels (default=800)
+    :param int height: (optional) The height of the display in pixels (default=480)
+    :param int baudrate: (optional) The spi speed (default=6000000)
+    :param int polarity: (optional) The spi polarity (default=0)
+    :param int phase: (optional) The spi phase (default=0)
     """
 
     # pylint: disable-msg=invalid-name,too-many-arguments
@@ -68,16 +77,6 @@ class RA8875_Device:
         polarity=0,
         phase=0,
     ):
-        """
-        :param SPI spi: The spi peripheral to use
-        :param DigitalInOut cs: The chip-select pin to use (sometimes labeled "SS")
-        :param DigitalInOut rst: (optional) The reset pin if it exists (default=None)
-        :param int width: (optional) The width of the display in pixels (default=800)
-        :param int height: (optional) The height of the display in pixels (default=480)
-        :param int baudrate: (optional) The spi speed (default=6000000)
-        :param int phase: (optional) The spi phase (default=0)
-        :param int polarity: (optional) The spi polarity (default=0)
-        """
         self.spi_device = spi_device.SPIDevice(
             spi, cs, baudrate=baudrate, polarity=polarity, phase=phase
         )
