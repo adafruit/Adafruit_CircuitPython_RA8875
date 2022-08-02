@@ -13,6 +13,10 @@ Introduction
     :target: https://github.com/adafruit/Adafruit_CircuitPython_RA8875/actions/
     :alt: Build Status
 
+.. image:: https://img.shields.io/badge/code%20style-black-000000.svg
+    :target: https://github.com/psf/black
+    :alt: Code Style: Black
+
 This is a full featured CircuitPython Library for the RA8875 that included all of the hardware
 accelerated drawing functions as the original Arduino library. A lot of the functionality has
 been streamlined with a focus on ease of use that is still flexible enough to make full use of
