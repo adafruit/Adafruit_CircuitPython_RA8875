@@ -12,7 +12,7 @@ requires = [
 [project]
 name = "adafruit-circuitpython-ra8875"
 description = "CircuitPython driver for TFT Touch screens based on RA8875."
-version = "0.0.0-auto.0"
+version = "0.0.0+auto.0"
 readme = "README.rst"
 authors = [
     {name = "Adafruit Industries", email = "circuitpython@adafruit.com"}
