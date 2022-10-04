@@ -34,11 +34,18 @@ from digitalio import Direction
 from adafruit_bus_device import spi_device
 import adafruit_ra8875.registers as reg
 
+try:
+    from typing import Optional, Tuple, Union
+    from digitalio import DigitalInOut  # pylint: disable=ungrouped-imports
+    from busio import SPI
+except ImportError:
+    pass
+
 __version__ = "0.0.0+auto.0"
 __repo__ = "https://github.com/adafruit/Adafruit_CircuitPython_RA8875.git"
 
 # pylint: disable-msg=invalid-name
-def color565(r, g=0, b=0):
+def color565(r: int, g: int = 0, b: int = 0) -> int:
     """Convert red, green and blue values (0-255) into a 16-bit 565 encoding."""
     try:
         r, g, b = r  # see if the first var is a tuple/list
@@ -68,15 +75,15 @@ class RA8875_Device:
     # pylint: disable-msg=invalid-name,too-many-arguments
     def __init__(
         self,
-        spi,
-        cs,
-        rst=None,
-        width=800,
-        height=480,
-        baudrate=6000000,
-        polarity=0,
-        phase=0,
-    ):
+        spi: SPI,
+        cs: DigitalInOut,
+        rst: Optional[DigitalInOut] = None,
+        width: int = 800,
+        height: int = 480,
+        baudrate: int = 6000000,
+        polarity: int = 0,
+        phase: int = 0,
+    ) -> None:
         self.spi_device = spi_device.SPIDevice(
             spi, cs, baudrate=baudrate, polarity=polarity, phase=phase
         )
@@ -98,7 +105,7 @@ class RA8875_Device:
 
     # pylint: enable-msg=invalid-name,too-many-arguments
 
-    def init(self, start_on=True):
+    def init(self, start_on: bool = True) -> None:
         """
         Send the Init Commands for the selected Display Size
 
@@ -164,14 +171,14 @@ class RA8875_Device:
         self._pwm1_config(True, reg.PWM_CLK_DIV1024)
         self.brightness(255)
 
-    def pllinit(self):
+    def pllinit(self) -> None:
         """Init the Controller PLL"""
         self._write_reg(reg.PLLC1, reg.PLLC1_PLLDIV1 + 11)
         time.sleep(0.001)
         self._write_reg(reg.PLLC2, reg.PLLC2_DIV4)
         time.sleep(0.001)
 
-    def _write_reg(self, cmd, data, raw=False):
+    def _write_reg(self, cmd: int, data: int, raw: bool = False) -> None:
         """
         Select a Register and write a byte or push raw data out
 
@@ -183,7 +190,7 @@ class RA8875_Device:
         self._write_cmd(cmd)
         self._write_data(data, raw)
 
-    def _write_reg16(self, cmd, data):
+    def _write_reg16(self, cmd: int, data: Union[int, bytearray]) -> None:
         """
         Select a Register and write 2 bytes or push raw data out
 
@@ -196,7 +203,7 @@ class RA8875_Device:
         self._write_cmd(cmd + 1)
         self._write_data(data >> 8)
 
-    def _write_cmd(self, cmd):
+    def _write_cmd(self, cmd: int) -> None:
         """
         Select a Register/Command
 
@@ -206,7 +213,7 @@ class RA8875_Device:
             spi.write(reg.CMDWR)  # pylint: disable=no-member
             spi.write(bytearray([cmd & 0xFF]))  # pylint: disable=no-member
 
-    def _write_data(self, data, raw=False):
+    def _write_data(self, data: int, raw: bool = False) -> None:
         """
         Write a byte or push raw data out
 
@@ -222,7 +229,7 @@ class RA8875_Device:
                 data if raw else bytearray([data & 0xFF])
             )  # pylint: disable=no-member
 
-    def _read_reg(self, cmd):
+    def _read_reg(self, cmd: int) -> int:
         """
         Select a Register and read a byte
 
@@ -233,7 +240,7 @@ class RA8875_Device:
         self._write_cmd(cmd)
         return self._read_data()
 
-    def _read_data(self):
+    def _read_data(self) -> int:
         """
         Read the data of the previously selected register
 
@@ -246,7 +253,7 @@ class RA8875_Device:
             spi.readinto(data)  # pylint: disable=no-member
             return struct.unpack(">B", data)[0]
 
-    def _wait_poll(self, register, mask):
+    def _wait_poll(self, register: int, mask: int) -> bool:
         """
         Keep checking a status bit and wait for an operation to complete.
         After 20ms, a timeout will occur and the function will stop waiting.
@@ -266,7 +273,7 @@ class RA8875_Device:
             if millis - start >= 20:
                 return False
 
-    def turn_on(self, display_on):
+    def turn_on(self, display_on: bool) -> None:
         """
         Turn the display on or off
 
@@ -277,20 +284,20 @@ class RA8875_Device:
             reg.PWRR_NORMAL | (reg.PWRR_DISPON if display_on else reg.PWRR_DISPOFF),
         )
 
-    def reset(self):
+    def reset(self) -> None:
         """Perform a hard reset"""
         self.rst.value = 0
         time.sleep(0.100)
         self.rst.value = 1
         time.sleep(0.100)
 
-    def soft_reset(self):
+    def soft_reset(self) -> None:
         """Perform a soft reset"""
         self._write_reg(reg.PWRR, reg.PWRR_SOFTRESET)
         self._write_data(reg.PWRR_NORMAL)
         time.sleep(0.001)
 
-    def sleep(self, sleep):
+    def sleep(self, sleep: bool) -> None:
         """
         Turn the display off with and set or remove the sleep state
 
@@ -300,11 +307,11 @@ class RA8875_Device:
             reg.PWRR, reg.PWRR_DISPOFF if sleep else (reg.PWRR_DISPOFF | reg.PWRR_SLEEP)
         )
 
-    def _gpiox(self, gpio_on):
+    def _gpiox(self, gpio_on: bool) -> None:
         """Enable or Disable the RA8875 GPIOs"""
         self._write_reg(reg.GPIOX, 1 if gpio_on else 0)
 
-    def _pwm1_config(self, pwm_on, clock):
+    def _pwm1_config(self, pwm_on: bool, clock: int) -> None:
         """
         Configure the backlight PWM Clock Speed
 
@@ -315,7 +322,7 @@ class RA8875_Device:
             reg.P1CR, (reg.P1CR_ENABLE if pwm_on else reg.P1CR_DISABLE) | (clock & 0xF)
         )
 
-    def brightness(self, level):
+    def brightness(self, level: int):
         """
         Configure the backlight brightness (0-255)
 
@@ -323,7 +330,9 @@ class RA8875_Device:
         """
         self._write_reg(reg.P1DCR, level)
 
-    def touch_init(self, tpin=None, enable=True):
+    def touch_init(
+        self, tpin: Optional[DigitalInOut] = None, enable: bool = True
+    ) -> None:
         """
         Initialize the Touchscreen
 
@@ -336,7 +345,7 @@ class RA8875_Device:
         self._write_reg(reg.INTC2, reg.INTC2_TP)
         self.touch_enable(enable)
 
-    def touch_enable(self, touch_on):
+    def touch_enable(self, touch_on: bool) -> None:
         """
         Enable touch functionality
 
@@ -356,7 +365,7 @@ class RA8875_Device:
             self._write_data(self._read_reg(reg.INTC1) & ~reg.INTC1_TP)
             self._write_reg(reg.TPCR0, reg.TPCR0_DISABLE)
 
-    def touched(self):
+    def touched(self) -> bool:
         """
         Check if the Screen is currently being touched. If a touch interrupt
         was specified, this is checked first.
@@ -371,7 +380,7 @@ class RA8875_Device:
         istouched = self._read_reg(reg.INTC2) & reg.INTC2_TP
         return istouched
 
-    def touch_read(self):
+    def touch_read(self) -> Tuple[int, int]:
         """
         Read the X and Y Coordinates of the current Touch Position
 
@@ -388,14 +397,14 @@ class RA8875_Device:
         self._write_reg(reg.INTC2, reg.INTC2_TP)
         return [touch_x, touch_y]
 
-    def _gfx_mode(self):
+    def _gfx_mode(self) -> None:
         """Set to Graphics Mode"""
         if self._mode == "gfx":
             return
         self._write_data(self._read_reg(reg.MWCR0) & ~reg.MWCR0_TXTMODE)
         self._mode = "gfx"
 
-    def _txt_mode(self):
+    def _txt_mode(self) -> None:
         """Set to Text Mode"""
         if self._mode == "txt":
             return
@@ -422,21 +431,21 @@ class RA8875Display(RA8875_Device):
     # pylint: disable-msg=invalid-name,too-many-arguments
     def __init__(
         self,
-        spi,
-        cs,
-        rst=None,
-        width=800,
-        height=480,
-        baudrate=6000000,
-        polarity=0,
-        phase=0,
-    ):
+        spi: SPI,
+        cs: DigitalInOut,
+        rst: Optional[DigitalInOut] = None,
+        width: int = 800,
+        height: int = 480,
+        baudrate: int = 6000000,
+        polarity: int = 0,
+        phase: int = 0,
+    ) -> None:
         self._txt_scale = 0
         super().__init__(spi, cs, rst, width, height, baudrate, polarity, phase)
 
     # pylint: disable=too-many-arguments
 
-    def txt_set_cursor(self, x, y):
+    def txt_set_cursor(self, x: int, y: int) -> None:
         """
         Set the X and Y coordinates of the Text Cursor
 
@@ -449,7 +458,7 @@ class RA8875Display(RA8875_Device):
 
     # pylint: enable-msg=invalid-name
 
-    def txt_color(self, fgcolor, bgcolor):
+    def txt_color(self, fgcolor: int, bgcolor: int):
         """
         Set the text foreground and background colors
 
@@ -460,7 +469,7 @@ class RA8875Display(RA8875_Device):
         self.set_bgcolor(bgcolor)
         self._write_data(self._read_reg(reg.FNCR1) & ~(1 << 6))
 
-    def txt_trans(self, color):
+    def txt_trans(self, color: int) -> None:
         """
         Set the text foreground color with a transparent background
 
@@ -470,7 +479,7 @@ class RA8875Display(RA8875_Device):
         self.set_color(color)
         self._write_data(self._read_reg(reg.FNCR1) | 1 << 6)
 
-    def txt_size(self, scale):
+    def txt_size(self, scale: int) -> None:
         """
         Set the Text Size (0-3)
 
@@ -481,7 +490,7 @@ class RA8875Display(RA8875_Device):
         self._write_data((self._read_reg(reg.FNCR1) & ~(0xF)) | (scale << 2) | scale)
         self._txt_scale = scale
 
-    def txt_write(self, string):
+    def txt_write(self, string: str) -> None:
         """
         Write text at the current cursor location using current settings
 
@@ -495,7 +504,7 @@ class RA8875Display(RA8875_Device):
                 time.sleep(0.001)
 
     # pylint: disable-msg=invalid-name
-    def setxy(self, x, y):
+    def setxy(self, x: int, y: int) -> None:
         """
         Set the X and Y coordinates of the Graphic Cursor
 
@@ -508,7 +517,7 @@ class RA8875Display(RA8875_Device):
 
     # pylint: enable-msg=invalid-name
 
-    def set_bgcolor(self, color):
+    def set_bgcolor(self, color: int) -> None:
         """
         Set the text background color
 
@@ -518,7 +527,7 @@ class RA8875Display(RA8875_Device):
         self._write_reg(0x61, (color & 0x07E0) >> 5)
         self._write_reg(0x62, (color & 0x001F))
 
-    def set_color(self, color):
+    def set_color(self, color: int) -> None:
         """
         Set the foreground color for graphics/text
 
@@ -529,7 +538,7 @@ class RA8875Display(RA8875_Device):
         self._write_reg(0x65, (color & 0x001F))
 
     # pylint: disable-msg=invalid-name
-    def pixel(self, x, y, color):
+    def pixel(self, x: int, y: int, color: int) -> None:
         """
         Draw a pixel at the X and Y coordinates of the specified color
 
@@ -542,7 +551,7 @@ class RA8875Display(RA8875_Device):
 
     # pylint: enable-msg=invalid-name
 
-    def push_pixels(self, pixel_data):
+    def push_pixels(self, pixel_data: bytearray) -> None:
         """
         Push a stream of pixel data to the screen.
 
@@ -552,7 +561,7 @@ class RA8875Display(RA8875_Device):
         self._write_reg(reg.MRWC, pixel_data, True)
 
     # pylint: disable-msg=invalid-name,too-many-arguments
-    def set_window(self, x, y, width, height):
+    def set_window(self, x: int, y: int, width: int, height: int) -> None:
         """
         Set an Active Drawing Window, which can be used in
         conjuntion with push_pixels for faster drawing
@@ -584,7 +593,7 @@ class RA8875(RA8875Display):
     """
 
     # pylint: disable-msg=invalid-name,too-many-arguments
-    def rect(self, x, y, width, height, color):
+    def rect(self, x: int, y: int, width: int, height: int, color: int) -> None:
         """
         Draw a rectangle (HW Accelerated)
 
@@ -596,7 +605,7 @@ class RA8875(RA8875Display):
         """
         self._rect_helper(x, y, x + width - 1, y + height - 1, color, False)
 
-    def fill_rect(self, x, y, width, height, color):
+    def fill_rect(self, x: int, y: int, width: int, height: int, color: int) -> None:
         """
         Draw a filled rectangle (HW Accelerated)
 
@@ -608,7 +617,7 @@ class RA8875(RA8875Display):
         """
         self._rect_helper(x, y, x + width - 1, y + height - 1, color, True)
 
-    def fill(self, color):
+    def fill(self, color: int) -> None:
         """
         Fill the Entire Screen (HW Accelerated)
 
@@ -616,7 +625,7 @@ class RA8875(RA8875Display):
         """
         self._rect_helper(0, 0, self.width - 1, self.height - 1, color, True)
 
-    def circle(self, x_center, y_center, radius, color):
+    def circle(self, x_center: int, y_center: int, radius: int, color: int) -> None:
         """
         Draw a circle (HW Accelerated)
 
@@ -627,7 +636,9 @@ class RA8875(RA8875Display):
         """
         self._circle_helper(x_center, y_center, radius, color, False)
 
-    def fill_circle(self, x_center, y_center, radius, color):
+    def fill_circle(
+        self, x_center: int, y_center: int, radius: int, color: int
+    ) -> None:
         """
         Draw a filled circle (HW Accelerated)
 
@@ -638,7 +649,9 @@ class RA8875(RA8875Display):
         """
         self._circle_helper(x_center, y_center, radius, color, True)
 
-    def ellipse(self, x_center, y_center, h_axis, v_axis, color):
+    def ellipse(
+        self, x_center: int, y_center: int, h_axis: int, v_axis: int, color: int
+    ) -> None:
         """
         Draw an ellipse (HW Accelerated)
 
@@ -650,7 +663,9 @@ class RA8875(RA8875Display):
         """
         self._ellipse_helper(x_center, y_center, h_axis, v_axis, color, False)
 
-    def fill_ellipse(self, x_center, y_center, h_axis, v_axis, color):
+    def fill_ellipse(
+        self, x_center: int, y_center: int, h_axis: int, v_axis: int, color: int
+    ) -> None:
         """
         Draw a Filled Ellipse (HW Accelerated)
 
@@ -662,7 +677,15 @@ class RA8875(RA8875Display):
         """
         self._ellipse_helper(x_center, y_center, h_axis, v_axis, color, True)
 
-    def curve(self, x_center, y_center, h_axis, v_axis, curve_part, color):
+    def curve(
+        self,
+        x_center: int,
+        y_center: int,
+        h_axis: int,
+        v_axis: int,
+        curve_part: int,
+        color: int,
+    ) -> None:
         """
         Draw a Curve (HW Accelerated)
         This is basically a quarter of an ellipse.
@@ -676,7 +699,15 @@ class RA8875(RA8875Display):
         """
         self._curve_helper(x_center, y_center, h_axis, v_axis, curve_part, color, False)
 
-    def fill_curve(self, x_center, y_center, h_axis, v_axis, curve_part, color):
+    def fill_curve(
+        self,
+        x_center: int,
+        y_center: int,
+        h_axis: int,
+        v_axis: int,
+        curve_part: int,
+        color: int,
+    ) -> None:
         """
         Draw a Filled Curve (HW Accelerated)
         This is basically a quarter of an ellipse.
@@ -690,7 +721,9 @@ class RA8875(RA8875Display):
         """
         self._curve_helper(x_center, y_center, h_axis, v_axis, curve_part, color, True)
 
-    def triangle(self, x1, y1, x2, y2, x3, y3, color):
+    def triangle(
+        self, x1: int, y1: int, x2: int, y2: int, x3: int, y3: int, color: int
+    ) -> None:
         """
         Draw a Triangle (HW Accelerated)
 
@@ -704,7 +737,9 @@ class RA8875(RA8875Display):
         """
         self._triangle_helper(x1, y1, x2, y2, x3, y3, color, False)
 
-    def fill_triangle(self, x1, y1, x2, y2, x3, y3, color):
+    def fill_triangle(
+        self, x1: int, y1: int, x2: int, y2: int, x3: int, y3: int, color: int
+    ) -> None:
         """
         Draw a Filled Triangle (HW Accelerated)
 
@@ -718,7 +753,7 @@ class RA8875(RA8875Display):
         """
         self._triangle_helper(x1, y1, x2, y2, x3, y3, color, True)
 
-    def hline(self, x, y, width, color):
+    def hline(self, x: int, y: int, width: int, color: int) -> None:
         """
         Draw a Horizontal Line (HW Accelerated)
 
@@ -729,7 +764,7 @@ class RA8875(RA8875Display):
         """
         self.line(x, y, x + width - 1, y, color)
 
-    def vline(self, x, y, height, color):
+    def vline(self, x: int, y: int, height: int, color: int) -> None:
         """
         Draw a Vertical Line (HW Accelerated)
 
@@ -740,7 +775,7 @@ class RA8875(RA8875Display):
         """
         self.line(x, y, x, y + height - 1, color)
 
-    def line(self, x1, y1, x2, y2, color):
+    def line(self, x1: int, y1: int, x2: int, y2: int, color: int) -> None:
         """
         Draw a Line (HW Accelerated)
 
@@ -766,7 +801,9 @@ class RA8875(RA8875Display):
         self._write_reg(reg.DCR, 0x80)
         self._wait_poll(reg.DCR, reg.DCR_LNSQTR_STATUS)
 
-    def round_rect(self, x, y, width, height, radius, color):
+    def round_rect(
+        self, x: int, y: int, width: int, height: int, radius: int, color: int
+    ) -> None:
         """
         Draw a rounded rectangle
 
@@ -793,7 +830,9 @@ class RA8875(RA8875Display):
         self.vline(x, y + radius, height - (radius * 2), color)
         self.vline(x + width - 1, y + radius, height - (radius * 2), color)
 
-    def fill_round_rect(self, x, y, width, height, radius, color):
+    def fill_round_rect(
+        self, x: int, y: int, width: int, height: int, radius: int, color: int
+    ) -> None:
         """
         Draw a filled rounded rectangle
 
@@ -822,7 +861,9 @@ class RA8875(RA8875Display):
             x, y + radius, x + width - 1, y + height - radius - 1, color, True
         )
 
-    def _circle_helper(self, x, y, radius, color, filled):
+    def _circle_helper(
+        self, x: int, y: int, radius: int, color: int, filled: bool
+    ) -> None:
         """General Circle Drawing Helper"""
         self._gfx_mode()
 
@@ -839,7 +880,9 @@ class RA8875(RA8875Display):
         )
         self._wait_poll(reg.DCR, reg.DCR_CIRC_STATUS)
 
-    def _rect_helper(self, x1, y1, x2, y2, color, filled):
+    def _rect_helper(
+        self, x1: int, y1: int, x2: int, y2: int, color: int, filled: bool
+    ) -> None:
         """General Rectangle Drawing Helper"""
         self._gfx_mode()
 
@@ -857,7 +900,17 @@ class RA8875(RA8875Display):
         self._write_reg(reg.DCR, 0xB0 if filled else 0x90)
         self._wait_poll(reg.DCR, reg.DCR_LNSQTR_STATUS)
 
-    def _triangle_helper(self, x1, y1, x2, y2, x3, y3, color, filled):
+    def _triangle_helper(
+        self,
+        x1: int,
+        y1: int,
+        x2: int,
+        y2: int,
+        x3: int,
+        y3: int,
+        color: int,
+        filled: bool,
+    ) -> None:
         """General Triangle Drawing Helper"""
         self._gfx_mode()
 
@@ -876,8 +929,15 @@ class RA8875(RA8875Display):
         self._wait_poll(reg.DCR, reg.DCR_LNSQTR_STATUS)
 
     def _curve_helper(
-        self, x_center, y_center, h_axis, v_axis, curve_part, color, filled
-    ):
+        self,
+        x_center: int,
+        y_center: int,
+        h_axis: int,
+        v_axis: int,
+        curve_part: int,
+        color: int,
+        filled: bool,
+    ) -> None:
         """General Curve Drawing Helper"""
         self._gfx_mode()
 
@@ -895,7 +955,15 @@ class RA8875(RA8875Display):
         self._write_reg(reg.ELLIPSE, (0xD0 if filled else 0x90) | (curve_part & 0x03))
         self._wait_poll(reg.ELLIPSE, reg.ELLIPSE_STATUS)
 
-    def _ellipse_helper(self, x_center, y_center, h_axis, v_axis, color, filled):
+    def _ellipse_helper(
+        self,
+        x_center: int,
+        y_center: int,
+        h_axis: int,
+        v_axis: int,
+        color: int,
+        filled: bool,
+    ) -> None:
         """General Ellipse Drawing Helper"""
         self._gfx_mode()
 
