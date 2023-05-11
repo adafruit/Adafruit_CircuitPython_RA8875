@@ -44,6 +44,7 @@ except ImportError:
 __version__ = "0.0.0+auto.0"
 __repo__ = "https://github.com/adafruit/Adafruit_CircuitPython_RA8875.git"
 
+
 # pylint: disable-msg=invalid-name
 def color565(r: int, g: int = 0, b: int = 0) -> int:
     """Convert red, green and blue values (0-255) into a 16-bit 565 encoding."""
