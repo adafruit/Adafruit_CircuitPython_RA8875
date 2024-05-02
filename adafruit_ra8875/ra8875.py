@@ -32,7 +32,7 @@ import time
 
 from digitalio import Direction
 from adafruit_bus_device import spi_device
-import adafruit_ra8875.registers as reg
+from adafruit_ra8875 import registers as reg
 
 try:
     from typing import Optional, Tuple, Union
@@ -45,7 +45,6 @@ __version__ = "0.0.0+auto.0"
 __repo__ = "https://github.com/adafruit/Adafruit_CircuitPython_RA8875.git"
 
 
-# pylint: disable=too-many-lines
 # pylint: disable-msg=invalid-name
 def color565(r: int, g: int = 0, b: int = 0) -> int:
     """Convert red, green and blue values (0-255) into a 16-bit 565 encoding."""
@@ -982,97 +981,3 @@ class RA8875(RA8875Display):
         # Draw it
         self._write_reg(reg.ELLIPSE, 0xC0 if filled else 0x80)
         self._wait_poll(reg.ELLIPSE, reg.ELLIPSE_STATUS)
-
-    # pylint: enable-msg=invalid-name,too-many-arguments
-
-
-class BMP:
-    """
-    Optimized with ChatGPT by DJDevon3
-    https://chat.openai.com/share/57ee2bb5-33ba-4538-a4b7-ec3dea8ea5c7
-
-    Draw Bitmap Helper Class (not hardware accelerated)
-
-    :param str: filename BMP filename
-    :param int colors: BMP color data
-    :param int data: BMP data
-    :param int data_size: BMP data size
-    :param int bpp: BMP bit depth data
-    :param int width: BMP width
-    :param int height: BMP height
-    :param int read_header: BMP read header function
-
-    """
-
-    def __init__(self, filename):
-        self.filename = filename
-        self.colors = None
-        self.data = None
-        self.data_size = 0
-        self.bpp = 0
-        self.width = 0
-        self.height = 0
-        self.read_header()
-
-    def read_header(self):
-        """Read file header data"""
-        if self.colors:
-            return
-        with open(self.filename, "rb") as bmp_file:
-            bmp_file.seek(10)
-            self.data = int.from_bytes(bmp_file.read(4), "little")
-            bmp_file.seek(18)
-            self.width = int.from_bytes(bmp_file.read(4), "little")
-            self.height = int.from_bytes(bmp_file.read(4), "little")
-            bmp_file.seek(28)
-            self.bpp = int.from_bytes(bmp_file.read(2), "little")
-            bmp_file.seek(34)
-            self.data_size = int.from_bytes(bmp_file.read(4), "little")
-            bmp_file.seek(46)
-            self.colors = int.from_bytes(bmp_file.read(4), "little")
-
-    def draw(self, disp, x=0, y=0):
-        """Draw BMP"""
-        print("{:d}x{:d} image".format(self.width, self.height))
-        print("{:d}-bit encoding detected".format(self.bpp))
-        line_size = self.width * (self.bpp // 8)
-        if line_size % 4 != 0:
-            line_size += 4 - line_size % 4
-
-        with open(self.filename, "rb") as bmp_file:
-            bmp_file.seek(self.data)
-            pixel_data = bmp_file.read()
-
-        disp.set_window(x, y, self.width, self.height)
-        for line in range(self.height):
-            current_line_data = b""
-            line_start = line * line_size
-            line_end = line_start + line_size
-            for i in range(line_start, line_end, self.bpp // 8):
-                if (line_end - i) < self.bpp // 8:
-                    break
-                if self.bpp == 16:
-                    color = self.convert_555_to_565(
-                        pixel_data[i] | pixel_data[i + 1] << 8
-                    )
-                if self.bpp in (24, 32):
-                    color = self.color565(
-                        pixel_data[i + 2], pixel_data[i + 1], pixel_data[i]
-                    )
-                current_line_data = current_line_data + struct.pack(">H", color)
-            disp.setxy(x, self.height - line + y)
-            disp.push_pixels(current_line_data)
-        disp.set_window(0, 0, disp.width, disp.height)
-
-    @staticmethod
-    def convert_555_to_565(color_555):
-        """Convert 16-bit color from 5-5-5 to 5-6-5 format"""
-        r = (color_555 & 0x1F) << 3
-        g = ((color_555 >> 5) & 0x1F) << 2
-        b = ((color_555 >> 10) & 0x1F) << 3
-        return (r << 11) | (g << 5) | b
-
-    @staticmethod
-    def color565(r, g, b):
-        """Convert 24-bit RGB color to 16-bit color (5-6-5 format)"""
-        return ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3)
