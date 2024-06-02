@@ -712,7 +712,7 @@ class RA8875(RA8875Display):
     currently 800x480 and 480x272.
     """
 
-    def read_single_pixel(self, x: int, y: int, debug: bool = True) -> int:
+    def read_single_pixel(self, x: int, y: int, debug: bool = False) -> int:
         """
         Read the color of a single pixel from layer 0 of the display at x,y coordinates.
 
