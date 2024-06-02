@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2019 Melissa LeBlanc-Williams for Adafruit Industries
 #
 # SPDX-License-Identifier: MIT
-
+# pylint: disable=too-many-lines
 """
 `adafruit_ra8875.ra8875`
 ====================================================
@@ -53,6 +53,18 @@ def color565(r: int, g: int = 0, b: int = 0) -> int:
     except TypeError:
         pass
     return (r & 0xF8) << 8 | (g & 0xFC) << 3 | b >> 3
+
+
+# pylint: enable-msg=invalid-name
+
+
+# pylint: disable-msg=invalid-name
+def convert_555_to_565(color_555):
+    """Convert 16-bit color from 5-5-5 to 5-6-5 format"""
+    r = (color_555 & 0x1F) << 3
+    g = ((color_555 >> 5) & 0x1F) << 2
+    b = ((color_555 >> 10) & 0x1F) << 3
+    return (r << 11) | (g << 5) | b
 
 
 # pylint: enable-msg=invalid-name
@@ -112,6 +124,9 @@ class RA8875_Device:
 
         :param bool start_on: (optional) If the display should start in an On State (default=True)
         """
+        hw_init = True
+        release_displays = True
+
         if self.width == 480 and self.height == 82:
             self.vert_offset = 190
 
@@ -137,40 +152,42 @@ class RA8875_Device:
 
         self.pllinit()
 
-        self._write_reg(reg.SYSR, reg.SYSR_16BPP | reg.SYSR_MCU8)
-        self._write_reg(reg.PCSR, pixclk)
-        time.sleep(0.001)
+        if hw_init:  # Bits Per Pixel: 16 | Bus: 8-Bit
+            self._write_reg(reg.SYSR, reg.SYSR_16BPP | reg.SYSR_MCU8)
+            self._write_reg(reg.PCSR, pixclk)
+            time.sleep(0.001)
 
-        # Horizontal settings registers
-        self._write_reg(reg.HDWR, self.width // 8 - 1)
-        self._write_reg(reg.HNDFTR, reg.HNDFTR_DE_HIGH)
-        self._write_reg(reg.HNDR, (hsync_nondisp - 2) // 8)
-        self._write_reg(reg.HSTR, hsync_start // 8 - 1)
-        self._write_reg(reg.HPWR, reg.HPWR_LOW + hsync_pw // 8 - 1)
+        if release_displays:  # equivilent to displayio release_displays()
+            # Horizontal settings registers
+            self._write_reg(reg.HDWR, self.width // 8 - 1)
+            self._write_reg(reg.HNDFTR, reg.HNDFTR_DE_HIGH)
+            self._write_reg(reg.HNDR, (hsync_nondisp - 2) // 8)
+            self._write_reg(reg.HSTR, hsync_start // 8 - 1)
+            self._write_reg(reg.HPWR, reg.HPWR_LOW + hsync_pw // 8 - 1)
 
-        # Vertical settings registers
-        self._write_reg16(reg.VDHR0, self.height - 1 + self.vert_offset)
-        self._write_reg16(reg.VNDR0, vsync_nondisp - 1)
-        self._write_reg16(reg.VSTR0, vsync_start - 1)
-        self._write_reg(reg.VPWR, reg.VPWR_LOW + vsync_pw - 1)
+            # Vertical settings registers
+            self._write_reg16(reg.VDHR0, self.height - 1 + self.vert_offset)
+            self._write_reg16(reg.VNDR0, vsync_nondisp - 1)
+            self._write_reg16(reg.VSTR0, vsync_start - 1)
+            self._write_reg(reg.VPWR, reg.VPWR_LOW + vsync_pw - 1)
 
-        # Set active window X
-        self._write_reg16(reg.HSAW0, 0)
-        self._write_reg16(reg.HEAW0, self.width - 1)
+            # Set active window X
+            self._write_reg16(reg.HSAW0, 0)
+            self._write_reg16(reg.HEAW0, self.width - 1)
 
-        # Set active window Y
-        self._write_reg16(reg.VSAW0, self.vert_offset)
-        self._write_reg16(reg.VEAW0, self.height - 1 + self.vert_offset)
+            # Set active window Y
+            self._write_reg16(reg.VSAW0, self.vert_offset)
+            self._write_reg16(reg.VEAW0, self.height - 1 + self.vert_offset)
 
-        # Clear the entire window
-        self._write_reg(reg.MCLR, reg.MCLR_START | reg.MCLR_FULL)
-        time.sleep(0.500)
+            # Clear the entire window
+            self._write_reg(reg.MCLR, reg.MCLR_START | reg.MCLR_FULL)
+            time.sleep(0.500)
 
-        # Turn the display on, enable GPIO, and setup the backlight
-        self.turn_on(start_on)
-        self._gpiox(True)
-        self._pwm1_config(True, reg.PWM_CLK_DIV1024)
-        self.brightness(255)
+            # Turn the display on, enable GPIO, and setup the backlight
+            self.turn_on(start_on)
+            self._gpiox(True)
+            self._pwm1_config(True, reg.PWM_CLK_DIV1024)
+            self.brightness(255)
 
     def pllinit(self) -> None:
         """Init the Controller PLL"""
@@ -179,7 +196,9 @@ class RA8875_Device:
         self._write_reg(reg.PLLC2, reg.PLLC2_DIV4)
         time.sleep(0.001)
 
-    def _write_reg(self, cmd: int, data: int, raw: bool = False) -> None:
+    def _write_reg(
+        self, cmd: int, data: int, raw: bool = False, debug: bool = False
+    ) -> None:
         """
         Select a Register and write a byte or push raw data out
 
@@ -188,10 +207,14 @@ class RA8875_Device:
         :type data: byte or bytearray
         :param bool raw: (optional) Is the data a raw bytearray (default=False)
         """
+        if debug:
+            print(f"_write_reg: cmd={cmd}, data={data}, raw={raw}")
         self._write_cmd(cmd)
         self._write_data(data, raw)
 
-    def _write_reg16(self, cmd: int, data: Union[int, bytearray]) -> None:
+    def _write_reg16(
+        self, cmd: int, data: Union[int, bytearray], debug: bool = False
+    ) -> None:
         """
         Select a Register and write 2 bytes or push raw data out
 
@@ -199,22 +222,26 @@ class RA8875_Device:
         :param data: The byte to write to the register
         :type data: byte or bytearray
         """
+        if debug:
+            print(f"_write_reg16: cmd={cmd}, data={data}")
         self._write_cmd(cmd)
         self._write_data(data)
         self._write_cmd(cmd + 1)
         self._write_data(data >> 8)
 
-    def _write_cmd(self, cmd: int) -> None:
+    def _write_cmd(self, cmd: int, debug: bool = False) -> None:
         """
         Select a Register/Command
 
         :param byte cmd: The register to select
         """
+        if debug:
+            print(f"_write_cmd: cmd={cmd}")
         with self.spi_device as spi:
             spi.write(reg.CMDWR)  # pylint: disable=no-member
             spi.write(bytearray([cmd & 0xFF]))  # pylint: disable=no-member
 
-    def _write_data(self, data: int, raw: bool = False) -> None:
+    def _write_data(self, data: int, raw: bool = False, debug: bool = False) -> None:
         """
         Write a byte or push raw data out
 
@@ -222,6 +249,8 @@ class RA8875_Device:
         :type data: byte or bytearray
         :param bool raw: (optional) Is the data a raw bytearray (default=False)
         """
+        if debug:
+            print(f"_write_data: data={data}, raw={raw}")
         with self.spi_device as spi:
             spi.write(reg.DATWR)  # pylint: disable=no-member
             if raw and isinstance(data, str):
@@ -230,7 +259,7 @@ class RA8875_Device:
                 data if raw else bytearray([data & 0xFF])
             )  # pylint: disable=no-member
 
-    def _read_reg(self, cmd: int) -> int:
+    def _read_reg(self, cmd: int, debug: bool = False) -> int:
         """
         Select a Register and read a byte
 
@@ -238,10 +267,12 @@ class RA8875_Device:
         :return: The results of the register
         :rtype: byte
         """
+        if debug:
+            print(f"_read_reg: cmd={cmd}")
         self._write_cmd(cmd)
         return self._read_data()
 
-    def _read_data(self) -> int:
+    def _read_data(self, debug: bool = False) -> int:
         """
         Read the data of the previously selected register
 
@@ -249,10 +280,43 @@ class RA8875_Device:
         :rtype: byte
         """
         data = bytearray(1)
+        if debug:
+            print(f"_read_data: data={data}")
         with self.spi_device as spi:
             spi.write(reg.DATRD)  # pylint: disable=no-member
             spi.readinto(data)  # pylint: disable=no-member
             return struct.unpack(">B", data)[0]
+
+    def _read_data16(self, debug: bool = False) -> int:
+        """
+        Read 16 bits of data from the previously selected register
+
+        :return: The 16-bit data read from the register
+        :rtype: int
+        """
+        # Allocate space for 2 bytes
+        data = bytearray(2)
+
+        if debug:
+            print("_read_data16: Reading 16 bits of data")
+
+        with self.spi_device as spi:
+            spi.write(reg.DATRD)  # Write the data read command
+            spi.readinto(data)  # Read 2 bytes of data
+        if debug:
+            print(
+                f"_read_data16: (data[0]: {data[0] & 0xFF:08b} "
+                + f"{(data[0] >> 8) & 0xFF:08b} data[1]: {data[1] & 0xFF:08b} "
+                + f"{(data[1] >> 8) & 0xFF:08b})"
+            )
+
+        # Combine the two bytes into a single 16-bit integer
+        result = (data[0] << 8) | data[1]
+
+        if debug:
+            print(f"_read_data16: Read data: {result:#06x} (Binary: {result:016b})")
+
+        return result
 
     def _wait_poll(self, register: int, mask: int) -> bool:
         """
@@ -528,15 +592,20 @@ class RA8875Display(RA8875_Device):
         self._write_reg(0x61, (color & 0x07E0) >> 5)
         self._write_reg(0x62, (color & 0x001F))
 
-    def set_color(self, color: int) -> None:
+    def set_color(self, color: int, debug: bool = False) -> None:
         """
         Set the foreground color for graphics/text
 
         :param int color: The of the text or graphics
         """
-        self._write_reg(0x63, (color & 0xF800) >> 11)
-        self._write_reg(0x64, (color & 0x07E0) >> 5)
-        self._write_reg(0x65, (color & 0x001F))
+        r = (color & 0xF800) >> 11
+        g = (color & 0x07E0) >> 5
+        b = color & 0x001F
+        if debug:
+            print(f"set_color: {color} (R: {r}, G: {g}, B: {b})")
+        self._write_reg(0x63, r)
+        self._write_reg(0x64, g)
+        self._write_reg(0x65, b)
 
     # pylint: disable-msg=invalid-name
     def pixel(self, x: int, y: int, color: int) -> None:
@@ -562,28 +631,78 @@ class RA8875Display(RA8875_Device):
         self._write_reg(reg.MRWC, pixel_data, True)
 
     # pylint: disable-msg=invalid-name,too-many-arguments
-    def set_window(self, x: int, y: int, width: int, height: int) -> None:
+    def set_window(
+        self,
+        x1: int,
+        y1: int,
+        win1_width: int,
+        win1_height: int,
+        color: int,
+        filled: bool = True,
+        debug: bool = False,
+    ) -> None:
         """
         Set an Active Drawing Window, which can be used in
         conjuntion with push_pixels for faster drawing
 
-        :param int x: The X coordinate of the left side of the window
-        :param int y: The Y coordinate of the top side of the window
+        :param int x1: The X coordinate of the left side of the window
+        :param int y1: The Y coordinate of the top side of the window
         :param int width: The width of the window
         :param int height: The height of the window
+        :param Tuple[int, int, int] bg_color: The background color of the window as an RGB tuple
         """
-        if x + width >= self.width:
-            width = self.width - x
-        if y + height >= self.height:
-            height = self.height - y
-        # X
-        self._write_reg16(reg.HSAW0, x)
-        self._write_reg16(reg.HEAW0, x + width)
-        # Y
-        self._write_reg16(reg.VSAW0, y)
-        self._write_reg16(reg.VEAW0, y + height)
+        if x1 + win1_width >= self.width:
+            win1_width = self.width - x1
+        if y1 + win1_height >= self.height:
+            win1_height = self.height - y1
+
+        self._gfx_mode()
+
+        # Set window coordinates
+        self._write_reg16(reg.HSAW0, x1)
+        self._write_reg16(reg.HEAW0, x1 + win1_width)
+        self._write_reg16(reg.VSAW0, y1)
+        self._write_reg16(reg.VEAW0, y1 + win1_height)
+
+        # Set X and Y
+        self._write_reg16(0x91, x1)
+        self._write_reg16(0x93, y1 + self.vert_offset)
+
+        # Set Width and Height
+        self._write_reg16(0x95, win1_width)
+        self._write_reg16(0x97, win1_height + self.vert_offset)
+
+        self.set_color(color)
+        if debug:
+            print(f"Color: {color}")
+
+        # Draw it
+        self._write_reg(reg.DCR, 0xB0 if filled else 0x90)
+        self._wait_poll(reg.DCR, reg.DCR_LNSQTR_STATUS)
 
     # pylint: enable-msg=invalid-name,too-many-arguments
+
+    def lighten_mode(self):
+        """Transparency Lighten"""
+        self._gfx_mode()
+        self._write_reg(0x52, 0b01010000, debug=False)
+
+    # pylint: disable-msg=invalid-name,too-many-arguments
+    def draw_cursor(self, x, y, inside_color, outline_color, debug: bool = False):
+        """Draw 2-color crosshair cursor at x,y position"""
+        # Draw the outline of the cursor
+        for i in range(-4, 5):
+            self.pixel(x + i, y - 4, outline_color)  # Top line
+            self.pixel(x + i, y + 4, outline_color)  # Bottom line
+            self.pixel(x - 4, y + i, outline_color)  # Left line
+            self.pixel(x + 4, y + i, outline_color)  # Right line
+
+        # Draw the inside of the cursor
+        for i in range(-3, 4):
+            self.pixel(x + i, y, inside_color)  # Horizontal line
+            self.pixel(x, y + i, inside_color)  # Vertical line
+        if debug:
+            print(f"Drawing Cursor at: {x},{y}")
 
 
 class RA8875(RA8875Display):
@@ -593,8 +712,52 @@ class RA8875(RA8875Display):
     currently 800x480 and 480x272.
     """
 
+    def read_single_pixel(self, x: int, y: int, debug: bool = True) -> int:
+        """
+        Read the color of a single pixel from layer 0 of the display at x,y coordinates.
+
+        :param int x: X coordinate of the pixel.
+        :param int y: Y coordinate of the pixel.
+        :param bool debug: Flag to enable debug printing.
+        :return: Color of the pixel in RGB format (24-bit).
+        :rtype: int
+        """
+        # Ensure x and y are within display bounds
+        if not (0 <= x < self.width and 0 <= y < self.height):
+            raise ValueError(
+                f"Coordinates ({x}, {y}) out of bounds for display size {self.width}x{self.height}"
+            )
+        if debug:
+            print(f"Reading pixel at ({x}, {y})")
+
+        # Set graphics mode
+        self._gfx_mode()
+        # Set read cursor position for layer0 (800x480 16-bit mode)
+        self._write_reg16(reg.RCURH0, x, debug=False)
+        self._write_reg16(reg.RCURV0, y + self.vert_offset, debug=False)
+        # Set Memory Read/Write Control
+        self._read_reg(reg.MRWC)
+        # Read the color data
+        dummy = self._read_data16(debug=False)  # Dummy read
+        msb = self._read_data16(debug=False)  # MSB read
+
+        # Extract color components from MSB
+        green = (msb >> 8) & 0xFF  # Extracting 8 bits of green component
+        blue = (msb >> 3) & 0xFF  # Extracting 8 bits of blue component
+        red = (msb << 3) & 0xFF  # Extracting 8 bits of red component
+        if debug:
+            print(f"Dummy: {dummy} MSB: {msb}")
+            print(f"Extracted Colors: {red}, {green}, {blue}")
+            print(
+                f"Binary values: Red: {red:08b}, Green: {green:08b}, Blue: {blue:08b}"
+            )
+
+        return red, green, blue
+
     # pylint: disable-msg=invalid-name,too-many-arguments
-    def rect(self, x: int, y: int, width: int, height: int, color: int) -> None:
+    def rect(
+        self, x: int, y: int, width: int, height: int, color: int, filled: bool = False
+    ) -> None:
         """
         Draw a rectangle (HW Accelerated)
 
@@ -604,9 +767,11 @@ class RA8875(RA8875Display):
         :param int height: The height of the rectangle
         :param int color: The color of the rectangle
         """
-        self._rect_helper(x, y, x + width - 1, y + height - 1, color, False)
+        self._rect_helper(x, y, x + width - 1, y + height - 1, color, filled=filled)
 
-    def fill_rect(self, x: int, y: int, width: int, height: int, color: int) -> None:
+    def fill_rect(
+        self, x: int, y: int, width: int, height: int, color: int, debug: bool = False
+    ) -> None:
         """
         Draw a filled rectangle (HW Accelerated)
 
@@ -616,6 +781,8 @@ class RA8875(RA8875Display):
         :param int height: The height of the rectangle
         :param int color: The color of the rectangle
         """
+        if debug:
+            print(f"fill_rect color: {color}")
         self._rect_helper(x, y, x + width - 1, y + height - 1, color, True)
 
     def fill(self, color: int) -> None:
@@ -882,7 +1049,14 @@ class RA8875(RA8875Display):
         self._wait_poll(reg.DCR, reg.DCR_CIRC_STATUS)
 
     def _rect_helper(
-        self, x1: int, y1: int, x2: int, y2: int, color: int, filled: bool
+        self,
+        x1: int,
+        y1: int,
+        x2: int,
+        y2: int,
+        color: int,
+        filled: bool,
+        debug: bool = False,
     ) -> None:
         """General Rectangle Drawing Helper"""
         self._gfx_mode()
@@ -894,7 +1068,8 @@ class RA8875(RA8875Display):
         # Set Width and Height
         self._write_reg16(0x95, x2)
         self._write_reg16(0x97, y2 + self.vert_offset)
-
+        if debug:
+            print(f"_rect_helper: color={color}")
         self.set_color(color)
 
         # Draw it
