@@ -12,8 +12,8 @@ from adafruit_ra8875.ra8875 import color565
 
 BLACK = color565(0, 0, 0)
 RED = color565(255, 0, 0)
-BLUE = color565(0, 255, 0)
-GREEN = color565(0, 0, 255)
+GREEN = color565(0, 255, 0)
+BLUE = color565(0, 0, 255)
 YELLOW = color565(255, 255, 0)
 CYAN = color565(0, 255, 255)
 MAGENTA = color565(255, 0, 255)
