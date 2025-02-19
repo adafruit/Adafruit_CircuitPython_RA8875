@@ -349,8 +349,6 @@ class RA8875_Device:
         if tpin is not None:
             tpin.switch_to_input()
         self._tpin = tpin
-        # Clear the Interrupt Flag
-        # self._write_reg(reg.INTC2, reg.INTC2_TP)
         self.touch_enable(enable)
 
     def touch_enable(self, touch_on: bool) -> None:
