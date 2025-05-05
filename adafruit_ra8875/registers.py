@@ -65,8 +65,11 @@ HPWR_LOW = 0x00  # HSYNC Low
 HPWR_HIGH = 0x80  # HSYNC High
 
 VDHR0 = 0x19  # Vertical Start
+VDHR1 = 0x1A
 VNDR0 = 0x1B  # Vertical End
+VNDR1 = 0x1C
 VSTR0 = 0x1D  # VSYNC Start
+VSTR1 = 0x1E
 
 VPWR = 0x1F  # VSYNC Pulse Width
 VPWR_LOW = 0x00  # VSYNC Low
@@ -146,11 +149,22 @@ PWM_CLK_DIV1024 = 0x0A  # PWM Clock Divider
 TPCR0 = 0x70  # Touch Panel Control Register 0
 TPCR0_ENABLE = 0x80  # Enable Touch Panel
 TPCR0_DISABLE = 0x00  # Disable Touch Panel
+TPCR0_WAIT_512CLK = 0x00  # Wait 512 clocks
+TPCR0_WAIT_1024CLK = 0x10  # Wait 1024 clocks
+TPCR0_WAIT_2048CLK = 0x20  # Wait 2048 clocks
 TPCR0_WAIT_4096CLK = 0x30  # Wait 4096 clocks
+TPCR0_WAIT_8192CLK = 0x40  # Wait 8192 clocks
+TPCR0_WAIT_16384CLK = 0x50  # Wait 16384 clocks
+TPCR0_WAIT_32768CLK = 0x60  # Wait 32768 clocks
+TPCR0_WAIT_65536CLK = 0x70  # Wait 65536 clocks
 TPCR0_WAKEENABLE = 0x08  # Wake Enable
 TPCR0_WAKEDISABLE = 0x00  # Wake Disable
 TPCR0_ADCCLK_DIV4 = 0x02  # ADC Clock Divider 4
+TPCR0_ADCCLK_DIV8 = 0x03  # ADC Clock Divider 8
 TPCR0_ADCCLK_DIV16 = 0x04  # ADC Clock Divider 16
+TPCR0_ADCCLK_DIV32 = 0x05  # ADC Clock Divider 32
+TPCR0_ADCCLK_DIV64 = 0x06  # ADC Clock Divider 64
+TPCR0_ADCCLK_DIV128 = 0x07  # ADC Clock Divider 128
 
 TPCR1 = 0x71  # Touch Panel Control Register 1
 TPCR1_AUTO = 0x00  # Automatic Mode
@@ -173,3 +187,12 @@ INTC2_KEY = 0x10  # Interrupt: Key
 INTC2_DMA = 0x08  # Interrupt: DMA
 INTC2_TP = 0x04  # Interrupt: Touch Panel
 INTC2_BTE = 0x02  # Interrupt: BTE
+
+WAITTIME_LUT = {
+    TPCR0_ADCCLK_DIV4: TPCR0_WAIT_512CLK,
+    TPCR0_ADCCLK_DIV8: TPCR0_WAIT_1024CLK,
+    TPCR0_ADCCLK_DIV16: TPCR0_WAIT_2048CLK,
+    TPCR0_ADCCLK_DIV32: TPCR0_WAIT_4096CLK,
+    TPCR0_ADCCLK_DIV64: TPCR0_WAIT_8192CLK,
+    TPCR0_ADCCLK_DIV128: TPCR0_WAIT_16384CLK,
+}
