@@ -30,7 +30,6 @@ Implementation Notes
 import struct
 import time
 
-from digitalio import Direction
 from adafruit_bus_device import spi_device
 import adafruit_ra8875.registers as reg
 
@@ -45,7 +44,7 @@ __version__ = "0.0.0+auto.0"
 __repo__ = "https://github.com/adafruit/Adafruit_CircuitPython_RA8875.git"
 
 
-# pylint: disable-msg=invalid-name
+# pylint: disable-msg=invalid-name, too-many-statements
 def color565(r: int, g: int = 0, b: int = 0) -> int:
     """Convert red, green and blue values (0-255) into a 16-bit 565 encoding."""
     try:
@@ -102,7 +101,7 @@ class RA8875_Device:
             self.reset()
         if self._read_reg(0) == 0x75:
             return
-        self._adc_clk = reg.TPCR0_ADCCLK_DIV16
+        self._adc_clk = reg.TPCR0_ADCCLK_DIV4
 
     # pylint: enable-msg=invalid-name,too-many-arguments
 
@@ -112,6 +111,7 @@ class RA8875_Device:
 
         :param bool start_on: (optional) If the display should start in an On State (default=True)
         """
+        hsync_finetune = 0
         if self.width == 480 and self.height == 82:
             self.vert_offset = 190
 
@@ -123,6 +123,7 @@ class RA8875_Device:
             vsync_nondisp = 32
             vsync_start = 23
             vsync_pw = 2
+            self._adc_clk = reg.TPCR0_ADCCLK_DIV16
         elif self.width == 480 and self.height in (272, 128, 82):
             pixclk = reg.PCSR_PDATL | reg.PCSR_4CLK
             hsync_nondisp = 10
@@ -131,36 +132,41 @@ class RA8875_Device:
             vsync_nondisp = 3
             vsync_start = 8
             vsync_pw = 10
-            self._adc_clk = reg.TPCR0_ADCCLK_DIV4
         else:
             raise ValueError("An invalid display size was specified.")
 
         self.pllinit()
-
         self._write_reg(reg.SYSR, reg.SYSR_16BPP | reg.SYSR_MCU8)
         self._write_reg(reg.PCSR, pixclk)
         time.sleep(0.001)
 
         # Horizontal settings registers
         self._write_reg(reg.HDWR, self.width // 8 - 1)
-        self._write_reg(reg.HNDFTR, reg.HNDFTR_DE_HIGH)
-        self._write_reg(reg.HNDR, (hsync_nondisp - 2) // 8)
+        self._write_reg(reg.HNDFTR, reg.HNDFTR_DE_HIGH + hsync_finetune)
+        self._write_reg(reg.HNDR, (hsync_nondisp - hsync_finetune - 2) // 8)
         self._write_reg(reg.HSTR, hsync_start // 8 - 1)
-        self._write_reg(reg.HPWR, reg.HPWR_LOW + hsync_pw // 8 - 1)
+        self._write_reg(reg.HPWR, reg.HPWR_LOW + (hsync_pw // 8 - 1))
 
         # Vertical settings registers
-        self._write_reg16(reg.VDHR0, self.height - 1 + self.vert_offset)
+        self._write_reg16(reg.VDHR0, (self.height - 1 + self.vert_offset) & 0xFF)
+        self._write_reg16(reg.VDHR1, (self.height - 1 + self.vert_offset) >> 8)
         self._write_reg16(reg.VNDR0, vsync_nondisp - 1)
+        self._write_reg16(reg.VNDR1, vsync_nondisp >> 8)
         self._write_reg16(reg.VSTR0, vsync_start - 1)
+        self._write_reg16(reg.VSTR1, vsync_start >> 8)
         self._write_reg(reg.VPWR, reg.VPWR_LOW + vsync_pw - 1)
 
         # Set active window X
         self._write_reg16(reg.HSAW0, 0)
-        self._write_reg16(reg.HEAW0, self.width - 1)
+        self._write_reg16(reg.HSAW1, 0)
+        self._write_reg16(reg.HEAW0, (self.width - 1) & 0xFF)
+        self._write_reg16(reg.HEAW1, (self.width - 1) >> 8)
 
         # Set active window Y
         self._write_reg16(reg.VSAW0, self.vert_offset)
-        self._write_reg16(reg.VEAW0, self.height - 1 + self.vert_offset)
+        self._write_reg16(reg.VSAW1, self.vert_offset)
+        self._write_reg16(reg.VEAW0, (self.height - 1 + self.vert_offset) & 0xFF)
+        self._write_reg16(reg.VEAW1, (self.height - 1 + self.vert_offset) >> 8)
 
         # Clear the entire window
         self._write_reg(reg.MCLR, reg.MCLR_START | reg.MCLR_FULL)
@@ -216,7 +222,7 @@ class RA8875_Device:
 
     def _write_data(self, data: int, raw: bool = False) -> None:
         """
-        Write a byte or push raw data out
+        Write a byte or push raw data out using the previously selected register
 
         :param data: The byte to write to the register
         :type data: byte or bytearray
@@ -341,9 +347,8 @@ class RA8875_Device:
         :param bool enable: Enable the Touch Functionality as well
         """
         if tpin is not None:
-            tpin.direction = Direction.INPUT
+            tpin.switch_to_input()
         self._tpin = tpin
-        self._write_reg(reg.INTC2, reg.INTC2_TP)
         self.touch_enable(enable)
 
     def touch_enable(self, touch_on: bool) -> None:
@@ -356,12 +361,13 @@ class RA8875_Device:
             self._write_reg(
                 reg.TPCR0,
                 reg.TPCR0_ENABLE
-                | reg.TPCR0_WAIT_4096CLK
+                | reg.WAITTIME_LUT[self._adc_clk]
                 | reg.TPCR0_WAKEENABLE
                 | self._adc_clk,
             )
             self._write_reg(reg.TPCR1, reg.TPCR1_AUTO | reg.TPCR1_DEBOUNCE)
             self._write_data(self._read_reg(reg.INTC1) | reg.INTC1_TP)
+            self._gfx_mode()
         else:
             self._write_data(self._read_reg(reg.INTC1) & ~reg.INTC1_TP)
             self._write_reg(reg.TPCR0, reg.TPCR0_DISABLE)
@@ -375,9 +381,12 @@ class RA8875_Device:
         :rtype: bool
         """
         if self._tpin is not None:
-            self._gfx_mode()  # Hack that seems to work
+            # Hardware interrupt only works in graphics mode
+            self._gfx_mode()
             if self._tpin.value:
                 return False
+
+        # Read the Interrupt Flag
         istouched = self._read_reg(reg.INTC2) & reg.INTC2_TP
         return istouched
 
@@ -388,13 +397,13 @@ class RA8875_Device:
         :return: The coordinate of the detected touch
         :rtype: tuple[int, int]
         """
-        touch_x = self._read_reg(reg.TPXH)
-        touch_y = self._read_reg(reg.TPYH)
-        temp = self._read_reg(reg.TPXYL)
-        touch_x = touch_x << 2
-        touch_y = touch_y << 2
-        touch_x |= temp & 0x03
-        touch_y |= (temp >> 2) & 0x03
+        # Read the Touch Coordinates
+        touch_x_high_bits = self._read_reg(reg.TPXH)
+        touch_y_high_bits = self._read_reg(reg.TPYH)
+        touch_xy_low_bits = self._read_reg(reg.TPXYL)
+        touch_x = touch_x_high_bits << 2 | touch_xy_low_bits & 0x03
+        touch_y = touch_y_high_bits << 2 | (touch_xy_low_bits >> 2) & 0x03
+        # Clear the Interrupt Flag
         self._write_reg(reg.INTC2, reg.INTC2_TP)
         return [touch_x, touch_y]
 
