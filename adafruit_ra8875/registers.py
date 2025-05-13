@@ -15,7 +15,7 @@ A useful index of RA8875 Registers
 DATWR = b"\x00"  # Data Write
 DATRD = b"\x40"  # Data Read
 CMDWR = b"\x80"  # Command Write
-CMDRD = b"\xC0"  # Status Read
+CMDRD = b"\xc0"  # Status Read
 
 # Registers and Bits
 PWRR = 0x01

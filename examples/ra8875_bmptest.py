@@ -4,9 +4,9 @@
 # Quick bitmap test of RA8875 with Feather M4
 import struct
 
+import board
 import busio
 import digitalio
-import board
 
 from adafruit_ra8875 import ra8875
 from adafruit_ra8875.ra8875 import color565
@@ -61,8 +61,8 @@ class BMP:
             self.colors = int.from_bytes(f.read(4), "little")
 
     def draw(self, disp, x=0, y=0):
-        print("{:d}x{:d} image".format(self.width, self.height))
-        print("{:d}-bit encoding detected".format(self.bpp))
+        print(f"{self.width:d}x{self.height:d} image")
+        print(f"{self.bpp:d}-bit encoding detected")
         line = 0
         line_size = self.width * (self.bpp // 8)
         if line_size % 4 != 0:
@@ -79,10 +79,8 @@ class BMP:
                         break
                     if self.bpp == 16:
                         color = convert_555_to_565(line_data[i] | line_data[i + 1] << 8)
-                    if self.bpp in (24, 32):
-                        color = color565(
-                            line_data[i + 2], line_data[i + 1], line_data[i]
-                        )
+                    if self.bpp in {24, 32}:
+                        color = color565(line_data[i + 2], line_data[i + 1], line_data[i])
                     current_line_data = current_line_data + struct.pack(">H", color)
                 disp.setxy(x, self.height - line + y)
                 disp.push_pixels(current_line_data)
