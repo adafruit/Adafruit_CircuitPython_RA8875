@@ -31,12 +31,14 @@ import struct
 import time
 
 from adafruit_bus_device import spi_device
+
 import adafruit_ra8875.registers as reg
 
 try:
     from typing import Optional, Tuple, Union
-    from digitalio import DigitalInOut  # pylint: disable=ungrouped-imports
+
     from busio import SPI
+    from digitalio import DigitalInOut  # pylint: disable=ungrouped-imports
 except ImportError:
     pass
 
@@ -124,7 +126,7 @@ class RA8875_Device:
             vsync_start = 23
             vsync_pw = 2
             self._adc_clk = reg.TPCR0_ADCCLK_DIV16
-        elif self.width == 480 and self.height in (272, 128, 82):
+        elif self.width == 480 and self.height in {272, 128, 82}:
             pixclk = reg.PCSR_PDATL | reg.PCSR_4CLK
             hsync_nondisp = 10
             hsync_start = 8
@@ -232,9 +234,7 @@ class RA8875_Device:
             spi.write(reg.DATWR)  # pylint: disable=no-member
             if raw and isinstance(data, str):
                 data = bytes(data, "utf8")
-            spi.write(
-                data if raw else bytearray([data & 0xFF])
-            )  # pylint: disable=no-member
+            spi.write(data if raw else bytearray([data & 0xFF]))  # pylint: disable=no-member
 
     def _read_reg(self, cmd: int) -> int:
         """
@@ -325,9 +325,7 @@ class RA8875_Device:
         :param bool pwm_on: Should we enable the Backlight PWM
         :param byte clock: Clock Divider to use for PWM Speed
         """
-        self._write_reg(
-            reg.P1CR, (reg.P1CR_ENABLE if pwm_on else reg.P1CR_DISABLE) | (clock & 0xF)
-        )
+        self._write_reg(reg.P1CR, (reg.P1CR_ENABLE if pwm_on else reg.P1CR_DISABLE) | (clock & 0xF))
 
     def brightness(self, level: int):
         """
@@ -337,9 +335,7 @@ class RA8875_Device:
         """
         self._write_reg(reg.P1DCR, level)
 
-    def touch_init(
-        self, tpin: Optional[DigitalInOut] = None, enable: bool = True
-    ) -> None:
+    def touch_init(self, tpin: Optional[DigitalInOut] = None, enable: bool = True) -> None:
         """
         Initialize the Touchscreen
 
@@ -646,9 +642,7 @@ class RA8875(RA8875Display):
         """
         self._circle_helper(x_center, y_center, radius, color, False)
 
-    def fill_circle(
-        self, x_center: int, y_center: int, radius: int, color: int
-    ) -> None:
+    def fill_circle(self, x_center: int, y_center: int, radius: int, color: int) -> None:
         """
         Draw a filled circle (HW Accelerated)
 
@@ -659,9 +653,7 @@ class RA8875(RA8875Display):
         """
         self._circle_helper(x_center, y_center, radius, color, True)
 
-    def ellipse(
-        self, x_center: int, y_center: int, h_axis: int, v_axis: int, color: int
-    ) -> None:
+    def ellipse(self, x_center: int, y_center: int, h_axis: int, v_axis: int, color: int) -> None:
         """
         Draw an ellipse (HW Accelerated)
 
@@ -731,9 +723,7 @@ class RA8875(RA8875Display):
         """
         self._curve_helper(x_center, y_center, h_axis, v_axis, curve_part, color, True)
 
-    def triangle(
-        self, x1: int, y1: int, x2: int, y2: int, x3: int, y3: int, color: int
-    ) -> None:
+    def triangle(self, x1: int, y1: int, x2: int, y2: int, x3: int, y3: int, color: int) -> None:
         """
         Draw a Triangle (HW Accelerated)
 
@@ -811,9 +801,7 @@ class RA8875(RA8875Display):
         self._write_reg(reg.DCR, 0x80)
         self._wait_poll(reg.DCR, reg.DCR_LNSQTR_STATUS)
 
-    def round_rect(
-        self, x: int, y: int, width: int, height: int, radius: int, color: int
-    ) -> None:
+    def round_rect(self, x: int, y: int, width: int, height: int, radius: int, color: int) -> None:
         """
         Draw a rounded rectangle
 
@@ -826,12 +814,8 @@ class RA8875(RA8875Display):
         """
         self._gfx_mode()
         self._curve_helper(x + radius, y + radius, radius, radius, 1, color, False)
-        self._curve_helper(
-            x + width - radius - 1, y + radius, radius, radius, 2, color, False
-        )
-        self._curve_helper(
-            x + radius, y + height - radius, radius, radius, 0, color, False
-        )
+        self._curve_helper(x + width - radius - 1, y + radius, radius, radius, 2, color, False)
+        self._curve_helper(x + radius, y + height - radius, radius, radius, 0, color, False)
         self._curve_helper(
             x + width - radius - 1, y + height - radius, radius, radius, 3, color, False
         )
@@ -855,25 +839,15 @@ class RA8875(RA8875Display):
         """
         self._gfx_mode()
         self._curve_helper(x + radius, y + radius, radius, radius, 1, color, True)
-        self._curve_helper(
-            x + width - radius - 1, y + radius, radius, radius, 2, color, True
-        )
-        self._curve_helper(
-            x + radius, y + height - radius, radius, radius, 0, color, True
-        )
+        self._curve_helper(x + width - radius - 1, y + radius, radius, radius, 2, color, True)
+        self._curve_helper(x + radius, y + height - radius, radius, radius, 0, color, True)
         self._curve_helper(
             x + width - radius - 1, y + height - radius, radius, radius, 3, color, True
         )
-        self._rect_helper(
-            x + radius, y, x + width - radius - 1, y + height - 1, color, True
-        )
-        self._rect_helper(
-            x, y + radius, x + width - 1, y + height - radius - 1, color, True
-        )
+        self._rect_helper(x + radius, y, x + width - radius - 1, y + height - 1, color, True)
+        self._rect_helper(x, y + radius, x + width - 1, y + height - radius - 1, color, True)
 
-    def _circle_helper(
-        self, x: int, y: int, radius: int, color: int, filled: bool
-    ) -> None:
+    def _circle_helper(self, x: int, y: int, radius: int, color: int, filled: bool) -> None:
         """General Circle Drawing Helper"""
         self._gfx_mode()
 
@@ -885,14 +859,10 @@ class RA8875(RA8875Display):
         self.set_color(color)
 
         # Draw it
-        self._write_reg(
-            reg.DCR, reg.DCR_CIRC_START | (reg.DCR_FILL if filled else reg.DCR_NOFILL)
-        )
+        self._write_reg(reg.DCR, reg.DCR_CIRC_START | (reg.DCR_FILL if filled else reg.DCR_NOFILL))
         self._wait_poll(reg.DCR, reg.DCR_CIRC_STATUS)
 
-    def _rect_helper(
-        self, x1: int, y1: int, x2: int, y2: int, color: int, filled: bool
-    ) -> None:
+    def _rect_helper(self, x1: int, y1: int, x2: int, y2: int, color: int, filled: bool) -> None:
         """General Rectangle Drawing Helper"""
         self._gfx_mode()
 
