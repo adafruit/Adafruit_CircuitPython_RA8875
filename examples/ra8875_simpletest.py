@@ -3,9 +3,10 @@
 
 # Quick test of RA8875 with Feather M4
 import time
+
+import board
 import busio
 import digitalio
-import board
 
 from adafruit_ra8875 import ra8875
 from adafruit_ra8875.ra8875 import color565
@@ -78,16 +79,4 @@ y_scale = 1024 / display.height
 while True:
     if display.touched():
         coords = display.touch_read()
-        display.fill_circle(
-            int(coords[0] / x_scale), int(coords[1] / y_scale), 4, MAGENTA
-        )
-        display.txt_color(WHITE, BLACK)
-        display.txt_set_cursor(display.width // 2 - 220, display.height // 2 - 20)
-        display.txt_size(2)
-        display.txt_write(
-            "Position ("
-            + str(int(coords[0] / x_scale))
-            + ", "
-            + str(int(coords[1] / y_scale))
-            + ")"
-        )
+        display.fill_circle(int(coords[0] / x_scale), int(coords[1] / y_scale), 4, MAGENTA)
