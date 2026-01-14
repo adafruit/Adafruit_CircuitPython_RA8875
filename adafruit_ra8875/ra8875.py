@@ -840,9 +840,9 @@ class RA8875(RA8875Display):
         self._gfx_mode()
         self._curve_helper(x + radius, y + radius, radius, radius, 1, color, True)
         self._curve_helper(x + width - radius - 1, y + radius, radius, radius, 2, color, True)
-        self._curve_helper(x + radius, y + height - radius, radius, radius, 0, color, True)
+        self._curve_helper(x + radius, y + height - radius - 1, radius, radius, 0, color, True)
         self._curve_helper(
-            x + width - radius - 1, y + height - radius, radius, radius, 3, color, True
+            x + width - radius - 1, y + height - radius - 1, radius, radius, 3, color, True
         )
         self._rect_helper(x + radius, y, x + width - radius - 1, y + height - 1, color, True)
         self._rect_helper(x, y + radius, x + width - 1, y + height - radius - 1, color, True)
