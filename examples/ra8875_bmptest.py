@@ -81,7 +81,7 @@ class BMP:
                         color = convert_555_to_565(line_data[i] | line_data[i + 1] << 8)
                     if self.bpp in {24, 32}:
                         color = color565(line_data[i + 2], line_data[i + 1], line_data[i])
-                    current_line_data = current_line_data + struct.pack(">H", color)
+                    current_line_data += struct.pack(">H", color)
                 disp.setxy(x, self.height - line + y)
                 disp.push_pixels(current_line_data)
             disp.set_window(0, 0, disp.width, disp.height)
